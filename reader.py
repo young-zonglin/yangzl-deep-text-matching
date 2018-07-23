@@ -52,11 +52,12 @@ def _remove_symbols(seq, pattern_str):
     return seq
 
 
-def _pre_process(src_fname, tgt_fname):
+def _pre_process_nltk(src_fname, tgt_fname):
     """
     transform raw train data to standard format
     save them to tgt_file
     in lower case
+    使用NLTK做英文切词，主要切标点符号和didn't之类
     :return: None
     """
     with open(src_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as src_file, \
@@ -65,7 +66,38 @@ def _pre_process(src_fname, tgt_fname):
             field_list = line.split('\t')
             for sentence in [field_list[0], field_list[2]]:
                 sentence = _remove_symbols(sentence, params.MATCH_SINGLE_QUOTE_STR)
-                tgt_file.write(sentence.lower())
+                for token in nltk.word_tokenize(sentence.lower()):
+                    if token:
+                        tgt_file.write(token + " ")
+                tgt_file.write('\t')
+            tgt_file.write(field_list[4])
+
+
+def _pre_process(src_fname, tgt_fname):
+    """
+    transform raw train data to standard format
+    save them to tgt_file
+    in lower case
+    训练语料有许多错误，例如拼写错误和标点符号错误 => 按照标点符号切词，只保留didn't类似的单引号
+    去除数字，因为得不到它们的向量
+    去除非法符号，例如"''"
+    :return: None
+    """
+    split_pattern = re.compile(params.SPLIT_PATTERN_STR)
+    number_pattern = re.compile(params.MATCH_NUMBER_STR)
+    illegal_char_pattern = re.compile(params.MATCH_ILLEGAL_CHAR_STR)
+    with open(src_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as src_file, \
+            open(tgt_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as tgt_file:
+        for line in src_file:
+            field_list = line.split('\t')
+            for sentence in [field_list[0], field_list[2]]:
+                sentence = _remove_symbols(sentence, params.MATCH_SINGLE_QUOTE_STR)
+                for token in split_pattern.split(sentence.lower()):
+                    if token and not number_pattern.match(token) \
+                            and not illegal_char_pattern.match(token):
+                        tgt_file.write(token+" ")
+                    else:
+                        print('===========', token)
                 tgt_file.write('\t')
             tgt_file.write(field_list[4])
 
@@ -77,13 +109,12 @@ def _read_words(fname):
     :return: set, {'apple', 'banana', ...}
     """
     ret_words = set()
-    split_pattern = re.compile(params.SPLIT_PATTERN_STR)
     with open(fname, 'r', encoding=params.OPEN_FILE_ENCODING) as file:
         for line in file:
             field_list = line.split('\t')
             source1 = field_list[0]
             source2 = field_list[1]
-            for word in split_pattern.split(source1) + split_pattern.split(source2):
+            for word in source1.split(' ')+source2.split(' '):
                 if word:
                     ret_words.add(word)
     return ret_words
@@ -107,20 +138,21 @@ if __name__ == '__main__':
     # str1 = "I don't like 'Random Number' at all"
     # print(_remove_symbols(str1, params.MATCH_SINGLE_QUOTE_STR))
 
-    # # ========== test _pre_process() func ==========
-    # _pre_process(params.CIKM_ENGLISH_TRAIN_DATA, params.PROCESSED_EN_TRAIN_DATA)
+    # ========== test _pre_process() func ==========
+    _pre_process(params.CIKM_ENGLISH_TRAIN_DATA, params.PROCESSED_EN_TRAIN_DATA)
 
-    # # ========== test _read_words() function ==========
-    # all_distinct_words = _read_words(params.PROCESSED_EN_TRAIN_DATA)
-    # for word in all_distinct_words:
-    #     print(word)
-    # print('total distinct words number:', len(all_distinct_words))
+    # ========== test _read_words() function ==========
+    all_distinct_words = _read_words(params.PROCESSED_EN_TRAIN_DATA)
+    for word in all_distinct_words:
+        print(word)
+    print('total distinct words number:', len(all_distinct_words))
 
-    # ========== test NLTK ==========
-    sentence = "I don't like 'Random Number' when time is eight o'clock."
-    tokens = nltk.word_tokenize(sentence)
-    for token in tokens:
-        print(token, end=' ')
-    print()
+    # # ========== test NLTK ==========
+    # sentence = "I don't like 'Random Number' when time is eight o'clock."
+    # tokens = nltk.word_tokenize(_remove_symbols(sentence, params.MATCH_SINGLE_QUOTE_STR).lower())
+    # print(tokens)
+    # for token in tokens:
+    #     print(token, end=' ')
+    # print()
 
     # ========== other test ==========
