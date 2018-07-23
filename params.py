@@ -27,7 +27,10 @@ SAVE_FILE_ENCODING = 'utf-8'
 
 BATCH_SAMPLES_NUMBER = 32  # 32 64 128 256
 
-SPLIT_PATTERN_STR = r'[ ,.;"?():!/]+'
+MATCH_PUNCTUATION_STR = r'[ ,.;"?():!/]+'
 MATCH_SINGLE_QUOTE_STR = r'[^a-zA-Z]*(\')[a-zA-Z ]*(\')[^a-zA-Z]+'
 MATCH_NUMBER_STR = r'^[0-9]+\.*[0-9]*$'
 MATCH_ILLEGAL_CHAR_STR = r'^[\']+$'
+
+fastText_EN_WORD_VEC_TOTAL_COUNT = 2519370
+fastText_ES_WORD_VEC_TOTAL_COUNT = 985667
