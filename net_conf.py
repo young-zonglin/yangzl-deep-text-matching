@@ -1,0 +1,17 @@
+# AvgSeqDenseModel
+RUN_WHICH_MODEL = 'AvgSeqDenseModel'
+
+# en es
+WHICH_LANGUAGE = 'en'
+
+# hyper params
+fastText_EN_WORD_VEC_DIM = 300
+fastText_ES_WORD_VEC_DIM = 300
+
+SEQ_EMBEDDING_DIM = 50
+
+TRAIN_EPOCH_TIMES = 1
+BATCH_SAMPLES_NUMBER = 32  # 32 64 128 256
+
+DROPOUT_RATE = 0.5
+DROPOUT_LAYER_SEED = 7
