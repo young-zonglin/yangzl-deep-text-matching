@@ -4,8 +4,7 @@ from models import BasicModel
 
 
 def main():
-    run_which_model = net_conf.RUN_WHICH_MODEL
-    text_match_model = BasicModel.make_model(run_which_model)
+    text_match_model = BasicModel()
     model_url = ''
     text_match_model.load(model_url)
     which_language = net_conf.WHICH_LANGUAGE

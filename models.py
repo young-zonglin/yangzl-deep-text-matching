@@ -79,7 +79,7 @@ class BasicModel:
         print('Val samples count: %d' % self.val_samples_count)
         print('Test samples count: %d' % self.test_samples_count)
 
-    def do_build(self, word_vec_seq1, word_vec_seq2):
+    def _do_build(self, word_vec_seq1, word_vec_seq2):
         raise NotImplementedError()
 
     def build(self):
@@ -112,7 +112,7 @@ class BasicModel:
         # print(embedding.get_input_shape_at(0))
         # print(embedding.get_output_shape_at(1))
 
-        preds = self.do_build(word_vec_seq1, word_vec_seq2)
+        preds = self._do_build(word_vec_seq1, word_vec_seq2)
         self.model = Model(inputs=[source1, source2], outputs=preds)
 
         print('================ In build ================')
@@ -186,7 +186,7 @@ class AvgSeqDenseModel(BasicModel):
     def __init__(self):
         super(AvgSeqDenseModel, self).__init__()
 
-    def do_build(self, word_vec_seq1, word_vec_seq2):
+    def _do_build(self, word_vec_seq1, word_vec_seq2):
 
         def avg_embedding(X):
             X = K.mean(X, axis=1)
