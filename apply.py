@@ -5,7 +5,7 @@ from models import BasicModel
 
 def main():
     text_match_model = BasicModel()
-    model_url = ''
+    model_url = 'E:\PyCharmProjects\CIKM-AnalytiCup-2018\model_trained\StackedBiLSTMDenseModel_en_2018-07-26 17_06_52.h5'
     text_match_model.load(model_url)
     which_language = net_conf.WHICH_LANGUAGE
 

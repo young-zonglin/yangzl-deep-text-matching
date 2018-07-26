@@ -156,7 +156,7 @@ def get_needed_vectors(processed_train_fname, fastText_vecs_fname, needed_vecs_f
 def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
     """
     randomly split raw data to train data, val data and test data
-    train : val : test = 7:2:1
+    train : val : test = 8:1:1
     :param raw_fname:
     :param train_fname:
     :param val_fname:
@@ -169,9 +169,9 @@ def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
             open(test_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as test_file:
         for line in raw_file:
             rand_value = random.rand()
-            if rand_value >= 0.3:
+            if rand_value >= 0.2:
                 train_file.write(line)
-            elif 0.1 <= rand_value < 0.3:
+            elif 0.1 <= rand_value < 0.2:
                 val_file.write(line)
             else:
                 test_file.write(line)

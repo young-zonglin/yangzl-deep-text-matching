@@ -1,5 +1,4 @@
 import os
-import time
 
 import net_conf
 import params
@@ -8,7 +7,6 @@ from models import BasicModel
 
 
 def main():
-    train_start = float(time.time())
     run_which_model = net_conf.RUN_WHICH_MODEL
     text_match_model = BasicModel.make_model(run_which_model)
     which_language = net_conf.WHICH_LANGUAGE
@@ -29,15 +27,12 @@ def main():
     text_match_model.compile()
     text_match_model.fit_generator()
 
-    train_end = float(time.time())
-    train_time = train_end - train_start
-    print('================ Train end ================')
-    print('Train time: {.2f}'.format(train_time))
-
     text_match_model.evaluate_generator()
 
     current_time = tools.get_current_time()
-    save_url = params.MODEL_SAVE_DIR + os.path.sep + run_which_model + '_' + which_language + '_' + current_time
+    save_url = \
+        params.MODEL_SAVE_DIR + os.path.sep + \
+        run_which_model + '_' + which_language + '_' + current_time + '.h5'
     text_match_model.save(save_url)
 
 if __name__ == '__main__':

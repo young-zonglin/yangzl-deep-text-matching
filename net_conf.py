@@ -1,5 +1,5 @@
-# AvgSeqDenseModel
-RUN_WHICH_MODEL = 'AvgSeqDenseModel'
+# AvgSeqDenseModel | StackedBiLSTMDenseModel
+RUN_WHICH_MODEL = 'StackedBiLSTMDenseModel'
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -8,7 +8,8 @@ WHICH_LANGUAGE = 'en'
 fastText_EN_WORD_VEC_DIM = 300
 fastText_ES_WORD_VEC_DIM = 300
 
-SEQ_EMBEDDING_DIM = 50
+HIDDEN_STATE_DIM = 50
+LINEAR_UNIT_NUM = 64
 
 TRAIN_EPOCH_TIMES = 1
 BATCH_SAMPLES_NUMBER = 32  # 32 64 128 256
