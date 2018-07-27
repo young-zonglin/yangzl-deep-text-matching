@@ -228,14 +228,10 @@ class AvgSeqDenseModel(BasicModel):
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
         middle_vec = Dropout(net_conf.DROPOUT_RATE)(merged_vec)
 
-        middle_vec = Dense(64, activation='relu')(middle_vec)
-        middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
-
-        middle_vec = Dense(64, activation='relu')(middle_vec)
-        middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
-
-        middle_vec = Dense(64, activation='relu')(middle_vec)
-        middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
+        dense_layer_num = 3
+        for _ in range(dense_layer_num):
+            middle_vec = Dense(64, activation='relu')(middle_vec)
+            middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
 
         preds = Dense(1, activation='sigmoid')(middle_vec)
         return preds
@@ -246,35 +242,30 @@ class StackedBiLSTMDenseModel(BasicModel):
         super(StackedBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq):
-        src1_word_vec_seq = Dropout(net_conf.DROPOUT_RATE)(src1_word_vec_seq)
-        src2_word_vec_seq = Dropout(net_conf.DROPOUT_RATE)(src2_word_vec_seq)
+        input_dropout = Dropout(net_conf.DROPOUT_RATE, name='input_dropout')
+        src1_hidden_seq = input_dropout(src1_word_vec_seq)
+        src2_hidden_seq = input_dropout(src2_word_vec_seq)
 
-        src1_hidden_seq = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM, return_sequences=True),
-                                        merge_mode='concat')(src1_word_vec_seq)
-        src2_hidden_seq = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM, return_sequences=True),
-                                        merge_mode='concat')(src2_word_vec_seq)
-        src1_hidden_seq = Dropout(net_conf.DROPOUT_RATE)(src1_hidden_seq)
-        src2_hidden_seq = Dropout(net_conf.DROPOUT_RATE)(src2_hidden_seq)
-        bilstm_retseq_layer_num = 1
+        bilstm_retseq_layer_num = 2
         for _ in range(bilstm_retseq_layer_num):
-            src1_hidden_seq = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM, return_sequences=True),
-                                            merge_mode='concat')(src1_hidden_seq)
-            src2_hidden_seq = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM, return_sequences=True),
-                                            merge_mode='concat')(src2_hidden_seq)
-            src1_hidden_seq = Dropout(net_conf.DROPOUT_RATE)(src1_hidden_seq)
-            src2_hidden_seq = Dropout(net_conf.DROPOUT_RATE)(src2_hidden_seq)
+            this_bilstm = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM, return_sequences=True), merge_mode='concat')
+            this_dropout = Dropout(net_conf.DROPOUT_RATE)
+            src1_hidden_seq = this_bilstm(src1_hidden_seq)
+            src2_hidden_seq = this_bilstm(src2_hidden_seq)
+            src1_hidden_seq = this_dropout(src1_hidden_seq)
+            src2_hidden_seq = this_dropout(src2_hidden_seq)
 
-        src1_encoding = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM))(src1_hidden_seq)
-        src2_encoding = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM))(src2_hidden_seq)
-        src1_encoding = Dropout(net_conf.DROPOUT_RATE)(src1_encoding)
-        src2_encoding = Dropout(net_conf.DROPOUT_RATE)(src2_encoding)
+        enc_bilstm = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM), name='enc_bilstm')
+        enc_dropout = Dropout(net_conf.DROPOUT_RATE, name='enc_dropout')
+        src1_encoding = enc_bilstm(src1_hidden_seq)
+        src2_encoding = enc_bilstm(src2_hidden_seq)
+        src1_encoding = enc_dropout(src1_encoding)
+        src2_encoding = enc_dropout(src2_encoding)
 
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
+        middle_vec = merged_vec
 
-        middle_vec = Dense(64, activation='relu')(merged_vec)
-        middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
-
-        dense_layer_num = 2
+        dense_layer_num = 3
         for _ in range(dense_layer_num):
             middle_vec = Dense(64, activation='relu')(middle_vec)
             middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)

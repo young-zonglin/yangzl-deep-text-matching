@@ -89,7 +89,7 @@ class SaveModel(Callback):
         current_time = get_current_time()
         save_url = \
             self.this_model_save_dir + os.path.sep + \
-            'epoch_' + str(epoch) + '_' + current_time + '.h5'
+            'epoch_' + str(epoch+1) + '_' + current_time + '.h5'
         self.model.save(save_url)
         print("\n================== 保存模型 ==================")
         print(net_conf.RUN_WHICH_MODEL, 'has been saved in', save_url)
