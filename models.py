@@ -83,10 +83,10 @@ class BasicModel:
         print('Val samples count: %d' % self.val_samples_count)
         print('Test samples count: %d' % self.test_samples_count)
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq):
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
         raise NotImplementedError()
 
-    def build(self):
+    def build(self, hyperparams=None):
         """
         define model
         template method pattern
@@ -117,7 +117,7 @@ class BasicModel:
         # print(embedding.get_input_shape_at(0))
         # print(embedding.get_output_shape_at(1))
 
-        preds = self._do_build(src1_word_vec_seq, src2_word_vec_seq)
+        preds = self._do_build(src1_word_vec_seq, src2_word_vec_seq, hyperparams)
         self.model = Model(inputs=[source1, source2], outputs=preds)
 
         print('\n================ In build ================')
@@ -209,7 +209,7 @@ class AvgSeqDenseModel(BasicModel):
     def __init__(self):
         super(AvgSeqDenseModel, self).__init__()
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq):
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
 
         def avg_embedding(X):
             X = K.mean(X, axis=1)
@@ -243,7 +243,7 @@ class StackedBiLSTMDenseModel(BasicModel):
     def __init__(self):
         super(StackedBiLSTMDenseModel, self).__init__()
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq):
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
         input_dropout = Dropout(net_conf.DROPOUT_RATE, name='input_dropout')
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
         src2_hidden_seq = input_dropout(src2_word_vec_seq)
@@ -280,5 +280,5 @@ class TransformerDenseModel(BasicModel):
     def __init__(self):
         super(TransformerDenseModel, self).__init__()
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq):
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
         pass
