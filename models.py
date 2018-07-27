@@ -134,6 +134,8 @@ class BasicModel:
         train_start = float(time.time())
         early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.0001,
                                        verbose=1, mode='min')
+        save_model = tools.SaveModel()
+        save_model.set_model(self.model)
         history = self.model.fit_generator(reader.generate_batch_data_file(self.train_fname,
                                                                            self.tokenizer,
                                                                            self.max_seq_len),
@@ -143,7 +145,7 @@ class BasicModel:
                                            validation_steps=self.val_samples_count / self.batch_samples_number,
                                            steps_per_epoch=self.train_samples_count / self.batch_samples_number,
                                            epochs=net_conf.TRAIN_EPOCH_TIMES, verbose=1,
-                                           callbacks=[early_stopping])
+                                           callbacks=[save_model, early_stopping])
 
         print('\n========================== history ===========================')
         acc = history.history.get('acc')
@@ -269,13 +271,21 @@ class StackedBiLSTMDenseModel(BasicModel):
 
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
 
-        middle_vec = Dense(net_conf.LINEAR_UNIT_NUM, activation='relu')(merged_vec)
+        middle_vec = Dense(64, activation='relu')(merged_vec)
         middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
 
         dense_layer_num = 2
         for _ in range(dense_layer_num):
-            middle_vec = Dense(net_conf.LINEAR_UNIT_NUM, activation='relu')(middle_vec)
+            middle_vec = Dense(64, activation='relu')(middle_vec)
             middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
 
         preds = Dense(1, activation='sigmoid')(middle_vec)
         return preds
+
+
+class TransformerDenseModel(BasicModel):
+    def __init__(self):
+        super(TransformerDenseModel, self).__init__()
+
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq):
+        pass

@@ -29,11 +29,11 @@ def main():
 
     text_match_model.evaluate_generator()
 
-    current_time = tools.get_current_time()
-    save_url = \
-        params.MODEL_SAVE_DIR + os.path.sep + \
-        run_which_model + '_' + which_language + '_' + current_time + '.h5'
-    text_match_model.save(save_url)
+    # current_time = tools.get_current_time()
+    # save_url = \
+    #     params.MODEL_SAVE_DIR + os.path.sep + \
+    #     run_which_model + '_' + which_language + '_' + current_time + '.h5'
+    # text_match_model.save(save_url)
 
 if __name__ == '__main__':
     main()

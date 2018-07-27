@@ -3,8 +3,10 @@ import re
 import time
 
 import matplotlib.pyplot as plt
+from keras.callbacks import Callback
 
 import params
+import net_conf
 
 
 def remove_symbols(seq, pattern_str):
@@ -67,6 +69,30 @@ def plot_figure(figure_name, *args):
     plt.savefig(save_url)
     plt.show()  # it is a blocking function
 
+
+class SaveModel(Callback):
+    def __init__(self):
+        super(SaveModel, self).__init__()
+        self.this_model_save_dir = None
+
+    def on_train_begin(self, logs=None):
+        run_which_model = net_conf.RUN_WHICH_MODEL
+        which_language = net_conf.WHICH_LANGUAGE
+        train_begin_time = get_current_time()
+        self.this_model_save_dir = \
+            params.MODEL_SAVE_DIR + os.path.sep + \
+            run_which_model+'_'+which_language+'_'+train_begin_time
+        if not os.path.exists(self.this_model_save_dir):
+            os.makedirs(self.this_model_save_dir)
+
+    def on_epoch_end(self, epoch, logs=None):
+        current_time = get_current_time()
+        save_url = \
+            self.this_model_save_dir + os.path.sep + \
+            'epoch_' + str(epoch) + '_' + current_time + '.h5'
+        self.model.save(save_url)
+        print("\n================== 保存模型 ==================")
+        print(net_conf.RUN_WHICH_MODEL, 'has been saved in', save_url)
 
 if __name__ == '__main__':
     # ========== test _remove_symbols() func ==========
