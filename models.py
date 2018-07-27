@@ -110,6 +110,7 @@ class BasicModel:
                               output_dim=self.word_vec_dim,
                               weights=[self.embedding_matrix],
                               input_length=self.max_seq_len,
+                              name='word_embedding',
                               trainable=False)
         src1_word_vec_seq = embedding(source1)
         src2_word_vec_seq = embedding(source2)
@@ -219,7 +220,8 @@ class AvgSeqDenseModel(BasicModel):
             return tuple(ret_shape)
 
         avg_seq = Lambda(function=avg_embedding,
-                         output_shape=avg_embedding_output_shape)
+                         output_shape=avg_embedding_output_shape,
+                         name='seq_avg')
         src1_encoding = avg_seq(src1_word_vec_seq)
         src2_encoding = avg_seq(src2_word_vec_seq)
         assert avg_seq.get_output_shape_at(0) == (self.batch_samples_number, self.word_vec_dim)
@@ -233,7 +235,7 @@ class AvgSeqDenseModel(BasicModel):
             middle_vec = Dense(64, activation='relu')(middle_vec)
             middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
 
-        preds = Dense(1, activation='sigmoid')(middle_vec)
+        preds = Dense(1, activation='sigmoid', name='sigmoid_output_layer')(middle_vec)
         return preds
 
 
@@ -270,7 +272,7 @@ class StackedBiLSTMDenseModel(BasicModel):
             middle_vec = Dense(64, activation='relu')(middle_vec)
             middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
 
-        preds = Dense(1, activation='sigmoid')(middle_vec)
+        preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 
 
