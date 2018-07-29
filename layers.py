@@ -125,7 +125,7 @@ class Reshape2(Layer):
 
 class Repeat(Layer):
     def __init__(self, rep, axis=0, batch_size=None, **kwargs):
-        super(Repeat, self).__init__(**kwargs)
+        Layer.__init__(self, **kwargs)
         self.rep = rep
         self.axis = axis
         self.batch_size = batch_size
@@ -136,7 +136,7 @@ class Repeat(Layer):
     def compute_output_shape(self, input_shape):
         axis = self.axis
         if axis == 0:
-            return self.batch_size*self.rep, input_shape[1], input_shape[2]
+            return self.rep*self.batch_size, input_shape[1], input_shape[2]
         elif axis == 1:
             return self.batch_size, self.rep*input_shape[1], input_shape[2]
         elif axis == 2:
@@ -148,7 +148,7 @@ class Repeat(Layer):
         config = {'rep': self.rep,
                   'axis': self.axis,
                   'batch_size': self.batch_size}
-        base_config = super(Repeat, self).get_config()
+        base_config = Layer.get_config(self)
         return dict(list(base_config.items()) + list(config.items()))
 
 
