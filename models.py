@@ -1,10 +1,9 @@
 import time
 
 import keras
-import tensorflow as tf
 from keras import backend as K
 from keras.callbacks import EarlyStopping
-from keras.layers import Input, Dense, Dropout, Embedding, Lambda, Reshape, LSTM, Bidirectional
+from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional
 from keras.models import Model
 from keras.models import load_model
 
@@ -12,6 +11,7 @@ import net_conf
 import reader
 import tools
 import transformer
+from layers import AvgEmb
 
 
 class BasicModel:
@@ -47,7 +47,7 @@ class BasicModel:
             return AvgSeqDenseModel()
         elif model_name == 'StackedBiLSTMDenseModel':
             return StackedBiLSTMDenseModel()
-        elif model_name == 'TransformerEncoderDenseModel':
+        elif model_name == 'TransformerEncoderDenseModel' or model_name == 'TransformerDenseModelTest':
             return TransformerEncoderDenseModel()
         else:
             return BasicModel()
@@ -233,26 +233,14 @@ class AvgSeqDenseModel(BasicModel):
         super(AvgSeqDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-
-        def avg_embedding(x):
-            x = tf.reduce_mean(x, axis=1, keepdims=True)
-            # return Reshape([self.word_vec_dim])(X)
-            return tf.reshape(x, [-1, self.word_vec_dim])
-
-        def avg_embedding_output_shape(input_shape):
-            ret_shape = self.batch_size, input_shape[2]
-            return tuple(ret_shape)
-
-        avg_seq = Lambda(function=avg_embedding,
-                         output_shape=avg_embedding_output_shape,
-                         name='seq_avg')
+        avg_seq = AvgEmb(self.word_vec_dim, name='seq_avg')
         src1_encoding = avg_seq(src1_word_vec_seq)
         src2_encoding = avg_seq(src2_word_vec_seq)
-        assert avg_seq.get_output_shape_at(0) == (self.batch_size, self.word_vec_dim)
-        assert avg_seq.get_output_shape_at(1) == (self.batch_size, self.word_vec_dim)
+        # assert avg_seq.get_output_shape_at(0) == (self.batch_size, self.word_vec_dim)
+        # assert avg_seq.get_output_shape_at(1) == (self.batch_size, self.word_vec_dim)
 
-        p_dropout = self.hyperparams.p_dropout
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
+        p_dropout = self.hyperparams.p_dropout
         middle_vec = Dropout(p_dropout)(merged_vec)
 
         dense_layer_num = self.hyperparams.dense_layer_num
@@ -327,12 +315,14 @@ class TransformerEncoderDenseModel(BasicModel):
                                                   layers_num=layers_num,
                                                   p_dropout=p_dropout,
                                                   pos_enc_layer=pos_enc_layer,
-                                                  mode=self.hyperparams.transformer_mode)
+                                                  mode=self.hyperparams.transformer_mode,
+                                                  batch_size=self.batch_size)
         src1_pos = Lambda(transformer.get_pos_seq)(src1_seq)
         src2_pos = Lambda(transformer.get_pos_seq)(src2_seq)
         src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
         src2_seq_repr_seq = transformer_encoder(src2_word_vec_seq, src2_seq, src_pos=src2_pos)
 
+        # TODO mask 操作
         def avg_embedding(x):
             x = K.mean(x, axis=1, keepdims=True)
             return K.reshape(x, [-1, d_model])

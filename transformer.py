@@ -3,12 +3,14 @@ The implementation of Transformer encoder mainly follows to the following link:
 https://github.com/Lsdefine/attention-is-all-you-need-keras
 """
 import numpy as np
-import tensorflow as tf
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras.initializers import Ones, Zeros
 from keras.layers import Activation, Dense, Dropout, Conv1D
-from keras.layers import Lambda, TimeDistributed, Concatenate, Add
+from keras.layers import TimeDistributed, Concatenate, Add
+
+from layers import Reshape1, Reshape2, Repeat, GetPadMask
+from layers import ScaledDotProduct, MMask, WeightedSum
 
 
 class LayerNormalization(Layer):
@@ -55,31 +57,30 @@ class ScaledDotProductAttention:
         :param mask: shape == (batch_size, seq_len, seq_len), [0, 0, 1, 1, ...], 需要mask的地方就标0
         :return: tuple, output: 不同位置序列的局部表示; attn: 不同位置对不同位置的依赖关系
         """
-        # K.batch_dot, batch-wise dot product
-        # batch-wise operation, element-wise operation, point-wise operation
-        # axes=[2, 2]意味着“砍掉”batch data tensor.shape的第三维
-        attn = Lambda(lambda x: K.batch_dot(x[0], x[1], axes=[2, 2]) / self.temper)([q, k])
+        attn = ScaledDotProduct(self.temper)([q, k])
         output = None
         # Masked operation
         if mask is not None:
-            mmask = Lambda(lambda x: (-1e+10)*(1-x))(mask)
+            mmask = MMask()(mask)
             attn = Add()([attn, mmask])
             attn = Activation('softmax')(attn)
             attn = self.dropout(attn)
-            # 默认axes=[2, 1]
-            output = Lambda(lambda x: K.batch_dot(x[0], x[1]))([attn, v])
+            output = WeightedSum()([attn, v])
         return output, attn
 
 
 class MultiHeadAttention:
     # mode 0 - big matrices, faster
     # mode 1 - more clear implementation
-    def __init__(self, n_head, d_model, d_k, d_v, p_dropout, mode=0, use_norm=True):
+    def __init__(self, n_head, d_model, d_k, d_v, p_dropout,
+                 mode=0, use_norm=True, batch_size=None):
         self.mode = mode
         self.n_head = n_head
         self.d_k = d_k
         self.d_v = d_v
         self.p_dropout = p_dropout
+        self.batch_size = batch_size
+
         # d_k = d_v = d_model/n_head
         if mode == 0:
             self.qs_layer = Dense(n_head * d_k, use_bias=False)
@@ -100,6 +101,7 @@ class MultiHeadAttention:
     def __call__(self, q, k, v, mask=None):
         d_k, d_v = self.d_k, self.d_v
         n_head = self.n_head
+        batch_size = self.batch_size
 
         head = None
         attn = None
@@ -108,31 +110,15 @@ class MultiHeadAttention:
             ks = self.ks_layer(k)
             vs = self.vs_layer(v)
 
-            def reshape1(x):
-                s = tf.shape(x)  # [batch_size, len_q, n_head * d_k]
-                x = tf.reshape(x, [s[0], s[1], n_head, d_k])
-                x = tf.transpose(x, [2, 0, 1, 3])
-                # -1意味着自动推断
-                x = tf.reshape(x, [-1, s[1], d_k])  # [n_head * batch_size, len_q, d_k]
-                return x
-
-            qs = Lambda(reshape1)(qs)
-            ks = Lambda(reshape1)(ks)
-            vs = Lambda(reshape1)(vs)
+            reshape1 = Reshape1(n_head, d_k, batch_size)
+            qs = reshape1(qs)
+            ks = reshape1(ks)
+            vs = reshape1(vs)
 
             if mask is not None:
-                mask = Lambda(lambda x: K.repeat_elements(x, n_head, 0))(mask)
+                mask = Repeat(n_head, 0, batch_size)(mask)
             head, attn = self.attention(qs, ks, vs, mask=mask)
-
-            def reshape2(x):
-                s = tf.shape(x)  # [n_head * batch_size, seq_len, d_v]
-                x = tf.reshape(x, [n_head, -1, s[1], s[2]])
-                x = tf.transpose(x, [1, 2, 0, 3])
-                # n_head * s[2]会出错！
-                x = tf.reshape(x, [-1, s[1], n_head * d_v])  # [batch_size, seq_len, n_head * d_v]
-                return x
-
-            head = Lambda(reshape2)(head)
+            head = Reshape2(n_head, d_v, batch_size)(head)
         elif self.mode == 1:
             heads = []
             attns = []
@@ -170,8 +156,11 @@ class PositionwiseFeedForward:
 
 
 class EncoderLayer:
-    def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v, p_dropout=0.1, mode=0):
-        self.self_att_layer = MultiHeadAttention(n_head, d_model, d_k, d_v, p_dropout=p_dropout, mode=mode)
+    def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v,
+                 p_dropout=0.1, mode=0, batch_size=None):
+        self.self_att_layer = MultiHeadAttention(n_head, d_model, d_k, d_v,
+                                                 p_dropout=p_dropout,
+                                                 mode=mode, batch_size=batch_size)
         self.pos_ffn_layer = PositionwiseFeedForward(d_model, d_inner_hid, p_dropout=p_dropout)
 
     def __call__(self, enc_input, mask=None):
@@ -230,9 +219,10 @@ def get_pos_seq(x):
 
 class Encoder:
     def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v,
-                 layers_num=6, p_dropout=0.1, pos_enc_layer=None, mode=0):
+                 layers_num=6, p_dropout=0.1, pos_enc_layer=None, mode=0, batch_size=None):
         self.pos_enc_layer = pos_enc_layer
-        self.enc_layers = [EncoderLayer(d_model, d_inner_hid, n_head, d_k, d_v, p_dropout, mode)
+        self.enc_layers = [EncoderLayer(d_model, d_inner_hid, n_head, d_k, d_v,
+                                        p_dropout, mode, batch_size)
                            for _ in range(layers_num)]
 
     def __call__(self, src_word_vec_seq, src_seq, src_pos, return_attn=False, active_layers=999):
@@ -241,7 +231,7 @@ class Encoder:
             pos_enc = self.pos_enc_layer(src_pos)
             x = Add()([x, pos_enc])
         attns = []
-        mask = Lambda(lambda x: get_pad_mask(x, x))(src_seq)
+        mask = GetPadMask()(src_seq)
         # 只激活哪些层
         for enc_layer in self.enc_layers[:active_layers]:
             x, attn = enc_layer(x, mask)

@@ -1,4 +1,5 @@
-# AvgSeqDenseModel | StackedBiLSTMDenseModel | TransformerEncoderDenseModel
+# AvgSeqDenseModel | StackedBiLSTMDenseModel |
+# TransformerEncoderDenseModel | TransformerDenseModelTest |
 RUN_WHICH_MODEL = 'TransformerEncoderDenseModel'
 
 # en es
@@ -19,6 +20,8 @@ def get_hyperparams(model_name):
         return StackedBiLSTMDenseParams()
     elif model_name == 'TransformerEncoderDenseModel':
         return TransformerEncoderDenseParams()
+    elif model_name == 'TransformerDenseModelTest':
+        return TransformerDenseParamsTest()
     else:
         return BasicParams()
 
@@ -57,6 +60,30 @@ class StackedBiLSTMDenseParams:
     early_stop_min_delta = 1e-4
     train_epoch_times = 1000
     batch_size = 32  # 32 64 128 256
+
+
+class TransformerDenseParamsTest:
+    transformer_mode = 0
+    word_vec_dim = 300
+    layers_num = 1
+    d_model = word_vec_dim
+    d_inner_hid = 32  # d_ff
+    n_head = 5  # h head
+    d_k = d_v = int(d_model/n_head)
+    d_pos_enc = d_model
+
+    dense_layer_num = 1
+    linear_unit_num = 32
+    dense_p_dropout = 0.5
+
+    pad = 'post'
+    cut = 'post'
+
+    p_dropout = 0.1
+    early_stop_patience = 1
+    early_stop_min_delta = 1e-4
+    train_epoch_times = 5
+    batch_size = 64  # 32 64 128 256
 
 
 class TransformerEncoderDenseParams:
