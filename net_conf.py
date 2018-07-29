@@ -60,16 +60,17 @@ class StackedBiLSTMDenseParams:
 
 
 class TransformerEncoderDenseParams:
+    transformer_mode = 0
     word_vec_dim = 300
-    layers_num = 6
+    layers_num = 2
     d_model = word_vec_dim
-    d_inner_hid = 2048  # d_ff
-    n_head = 6  # h head
+    d_inner_hid = 512  # d_ff
+    n_head = 5  # h head
     d_k = d_v = int(d_model/n_head)
     d_pos_enc = d_model
 
-    dense_layer_num = 3
-    linear_unit_num = 64
+    dense_layer_num = 2
+    linear_unit_num = 256
     dense_p_dropout = 0.5
 
     pad = 'post'
@@ -79,4 +80,4 @@ class TransformerEncoderDenseParams:
     early_stop_patience = 30
     early_stop_min_delta = 1e-4
     train_epoch_times = 1000
-    batch_size = 32  # 32 64 128 256
+    batch_size = 64  # 32 64 128 256

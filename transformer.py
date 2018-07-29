@@ -125,14 +125,14 @@ class MultiHeadAttention:
             head, attn = self.attention(qs, ks, vs, mask=mask)
 
             def reshape2(x):
-                s = tf.shape(x)  # [n_head * batch_size, seq_len, dim]
+                s = tf.shape(x)  # [n_head * batch_size, seq_len, d_v]
                 x = tf.reshape(x, [n_head, -1, s[1], s[2]])
                 x = tf.transpose(x, [1, 2, 0, 3])
-                x = tf.reshape(x, [-1, s[1], n_head * s[2]])  # [batch_size, seq_len, n_head * dim]
+                # n_head * s[2]会出错！
+                x = tf.reshape(x, [-1, s[1], n_head * d_v])  # [batch_size, seq_len, n_head * d_v]
                 return x
 
             head = Lambda(reshape2)(head)
-            attn = Lambda(reshape2)(attn)
         elif self.mode == 1:
             heads = []
             attns = []
@@ -170,8 +170,8 @@ class PositionwiseFeedForward:
 
 
 class EncoderLayer:
-    def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v, p_dropout=0.1):
-        self.self_att_layer = MultiHeadAttention(n_head, d_model, d_k, d_v, p_dropout=p_dropout)
+    def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v, p_dropout=0.1, mode=0):
+        self.self_att_layer = MultiHeadAttention(n_head, d_model, d_k, d_v, p_dropout=p_dropout, mode=mode)
         self.pos_ffn_layer = PositionwiseFeedForward(d_model, d_inner_hid, p_dropout=p_dropout)
 
     def __call__(self, enc_input, mask=None):
@@ -230,9 +230,10 @@ def get_pos_seq(x):
 
 class Encoder:
     def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v,
-                 layers_num=6, p_dropout=0.1, pos_enc_layer=None):
+                 layers_num=6, p_dropout=0.1, pos_enc_layer=None, mode=0):
         self.pos_enc_layer = pos_enc_layer
-        self.enc_layers = [EncoderLayer(d_model, d_inner_hid, n_head, d_k, d_v, p_dropout) for _ in range(layers_num)]
+        self.enc_layers = [EncoderLayer(d_model, d_inner_hid, n_head, d_k, d_v, p_dropout, mode)
+                           for _ in range(layers_num)]
 
     def __call__(self, src_word_vec_seq, src_seq, src_pos, return_attn=False, active_layers=999):
         x = src_word_vec_seq

@@ -326,7 +326,8 @@ class TransformerEncoderDenseModel(BasicModel):
         transformer_encoder = transformer.Encoder(d_model, d_inner_hid, n_head, d_k, d_v,
                                                   layers_num=layers_num,
                                                   p_dropout=p_dropout,
-                                                  pos_enc_layer=pos_enc_layer)
+                                                  pos_enc_layer=pos_enc_layer,
+                                                  mode=self.hyperparams.transformer_mode)
         src1_pos = Lambda(transformer.get_pos_seq)(src1_seq)
         src2_pos = Lambda(transformer.get_pos_seq)(src2_seq)
         src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
@@ -340,10 +341,10 @@ class TransformerEncoderDenseModel(BasicModel):
 
         src1_encoding = avg_seq(src1_seq_repr_seq)
         src2_encoding = avg_seq(src2_seq_repr_seq)
-        assert avg_seq.get_output_shape_at(0) == (self.batch_size, d_model)
-        assert avg_seq.get_output_shape_at(1) == (self.batch_size, d_model)
 
-        merged_vec = K.concatenate([src1_encoding, src2_encoding])
+        # input tensor => 一系列的Keras层 => output tensor
+        # 如果使用了backend函数，例如K.concatenate()或tf.reduce_mean()等，需要使用Lambda层封装它们
+        merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding])
         middle_vec = merged_vec
 
         dense_layer_num = self.hyperparams.dense_layer_num
