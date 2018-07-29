@@ -7,7 +7,6 @@ import numpy.random as random
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 
-import net_conf
 import params
 import tools
 
@@ -23,7 +22,7 @@ def _load_vectors(filename, head_n=None):
     data = {}
     try:
         fin = io.open(filename, 'r', encoding=params.OPEN_FILE_ENCODING,
-                  newline='\n', errors='ignore')
+                      newline='\n', errors='ignore')
     except FileNotFoundError as error:
         print(error)
         return data
@@ -241,11 +240,14 @@ def generate_in_out_pair_file(fname, tokenizer):
                 yield encodeds[0], encodeds[1], label
 
 
-def process_format_model_in(in_out_pairs, max_len):
+def process_format_model_in(in_out_pairs, max_len, batch_size, pad='pre', cut='pre'):
     """
     处理输入输出对的格式，使得符合模型的输入要求
     :param in_out_pairs: [(s1, s2, label), (word id list, list, str), ...]
     :param max_len: 最长序列（切词之后）的长度
+    :param batch_size:
+    :param pad:
+    :param cut:
     :return: ({'source1': S1, 'source2': S2}, y)
     S1.shape == S2.shape: 2d numpy array
     y.shape == (in_out_pairs len, vocab_size+1)
@@ -259,21 +261,24 @@ def process_format_model_in(in_out_pairs, max_len):
         y.append(int(in_out_pair[2]))
 
     # lists of list => 2d numpy array
-    S1 = pad_sequences(S1, maxlen=max_len, padding='pre', truncating='pre')
-    S2 = pad_sequences(S2, maxlen=max_len, padding='pre', truncating='pre')
+    S1 = pad_sequences(S1, maxlen=max_len, padding=pad, truncating=cut)
+    S2 = pad_sequences(S2, maxlen=max_len, padding=pad, truncating=cut)
 
     # binary classification problem
-    y = np.asarray(y, dtype=np.int16).reshape(net_conf.BATCH_SAMPLES_NUMBER, 1)
+    y = np.asarray(y, dtype=np.int16).reshape(batch_size, 1)
     return {'source1': S1, 'source2': S2}, y
 
 
-def generate_batch_data_file(fname, tokenizer, max_len):
+def generate_batch_data_file(fname, tokenizer, max_len, batch_size, pad, cut):
     """
     生成器函数，一次生成一个批的数据
     会在数据集上无限循环
     :param fname:
     :param tokenizer:
     :param max_len:
+    :param batch_size:
+    :param pad:
+    :param cut:
     :return: 返回迭代器，可以遍历由fname生成的batch data的集合
     """
     while True:
@@ -281,12 +286,12 @@ def generate_batch_data_file(fname, tokenizer, max_len):
         in_out_pairs = list()
         for in_out_pair in generate_in_out_pair_file(fname, tokenizer):
             # 每次生成一个批的数据，每次返回固定相同数目的样本
-            if batch_samples_count < net_conf.BATCH_SAMPLES_NUMBER - 1:
+            if batch_samples_count < batch_size - 1:
                 in_out_pairs.append(in_out_pair)
                 batch_samples_count += 1
             else:
                 in_out_pairs.append(in_out_pair)
-                X, y = process_format_model_in(in_out_pairs, max_len)
+                X, y = process_format_model_in(in_out_pairs, max_len, batch_size, pad, cut)
                 yield X, y
                 in_out_pairs = list()
                 batch_samples_count = 0

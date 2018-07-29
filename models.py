@@ -1,6 +1,7 @@
 import time
 
 import keras
+import tensorflow as tf
 from keras import backend as K
 from keras.callbacks import EarlyStopping
 from keras.layers import Input, Dense, Dropout, Embedding, Lambda, Reshape, LSTM, Bidirectional
@@ -10,14 +11,16 @@ from keras.models import load_model
 import net_conf
 import reader
 import tools
+import transformer
 
 
 class BasicModel:
     def __init__(self):
+        self.hyperparams = None
         self.max_seq_len = None
         self.vocab_size = None
         self.word_vec_dim = None
-        self.batch_samples_number = None
+        self.batch_size = None
 
         self.pretrained_word_vecs_fname = None
         self.raw_fname = None
@@ -28,6 +31,9 @@ class BasicModel:
         self.model = None
         self.embedding_matrix = None
         self.tokenizer = None
+
+        self.pad = None
+        self.cut = None
 
         self.total_samples_count = 0
         self.train_samples_count = 0
@@ -41,11 +47,13 @@ class BasicModel:
             return AvgSeqDenseModel()
         elif model_name == 'StackedBiLSTMDenseModel':
             return StackedBiLSTMDenseModel()
+        elif model_name == 'TransformerEncoderDenseModel':
+            return TransformerEncoderDenseModel()
         else:
-            pass
+            return BasicModel()
 
     def setup(self, raw_fname, train_fname, val_fname, test_fname,
-              pretrained_word_vecs_fname):
+              pretrained_word_vecs_fname, hyperparams):
         self.pretrained_word_vecs_fname = pretrained_word_vecs_fname
         reader.split_train_val_test(raw_fname, train_fname, val_fname, test_fname)
         self.raw_fname = raw_fname
@@ -53,9 +61,13 @@ class BasicModel:
         self.val_fname = val_fname
         self.test_fname = test_fname
 
-        self.batch_samples_number = net_conf.BATCH_SAMPLES_NUMBER
+        self.hyperparams = hyperparams
+        self.batch_size = self.hyperparams.batch_size
         self.tokenizer = reader.fit_tokenizer(self.raw_fname)
         self.vocab_size = len(self.tokenizer.word_index)
+
+        self.pad = self.hyperparams.pad
+        self.cut = self.hyperparams.cut
 
         for _ in reader.generate_in_out_pair_file(self.raw_fname, self.tokenizer):
             self.total_samples_count += 1
@@ -83,10 +95,10 @@ class BasicModel:
         print('Val samples count: %d' % self.val_samples_count)
         print('Test samples count: %d' % self.test_samples_count)
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
         raise NotImplementedError()
 
-    def build(self, hyperparams=None):
+    def build(self):
         """
         define model
         template method pattern
@@ -117,7 +129,7 @@ class BasicModel:
         # print(embedding.get_input_shape_at(0))
         # print(embedding.get_output_shape_at(1))
 
-        preds = self._do_build(src1_word_vec_seq, src2_word_vec_seq, hyperparams)
+        preds = self._do_build(src1_word_vec_seq, src2_word_vec_seq, source1, source2)
         self.model = Model(inputs=[source1, source2], outputs=preds)
 
         print('\n================ In build ================')
@@ -133,19 +145,27 @@ class BasicModel:
 
     def fit_generator(self):
         train_start = float(time.time())
-        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.0001,
+        early_stopping = EarlyStopping(monitor='val_loss',
+                                       patience=self.hyperparams.early_stop_patience,
+                                       min_delta=self.hyperparams.early_stop_min_delta,
                                        verbose=1, mode='min')
         save_model = tools.SaveModel()
         save_model.set_model(self.model)
         history = self.model.fit_generator(reader.generate_batch_data_file(self.train_fname,
                                                                            self.tokenizer,
-                                                                           self.max_seq_len),
+                                                                           self.max_seq_len,
+                                                                           self.batch_size,
+                                                                           self.pad,
+                                                                           self.cut),
                                            validation_data=reader.generate_batch_data_file(self.val_fname,
                                                                                            self.tokenizer,
-                                                                                           self.max_seq_len),
-                                           validation_steps=self.val_samples_count / self.batch_samples_number,
-                                           steps_per_epoch=self.train_samples_count / self.batch_samples_number,
-                                           epochs=net_conf.TRAIN_EPOCH_TIMES, verbose=1,
+                                                                                           self.max_seq_len,
+                                                                                           self.batch_size,
+                                                                                           self.pad,
+                                                                                           self.cut),
+                                           validation_steps=self.val_samples_count / self.batch_size,
+                                           steps_per_epoch=self.train_samples_count / self.batch_size,
+                                           epochs=self.hyperparams.train_epoch_times, verbose=1,
                                            callbacks=[save_model, early_stopping])
 
         print('\n========================== history ===========================')
@@ -181,8 +201,11 @@ class BasicModel:
     def evaluate_generator(self):
         scores = self.model.evaluate_generator(generator=reader.generate_batch_data_file(self.test_fname,
                                                                                          self.tokenizer,
-                                                                                         self.max_seq_len),
-                                               steps=self.test_samples_count / self.batch_samples_number)
+                                                                                         self.max_seq_len,
+                                                                                         self.batch_size,
+                                                                                         self.pad,
+                                                                                         self.cut),
+                                               steps=self.test_samples_count / self.batch_size)
         print("\n================== 性能评估 ==================")
         print("%s: %.4f" % (self.model.metrics_names[0], scores[0]))
         print("%s: %.2f%%" % (self.model.metrics_names[1], scores[1] * 100))
@@ -197,8 +220,8 @@ class BasicModel:
         print("\n================== 加载模型 ==================")
         print('Model has been loaded from', model_url)
 
-    def __call__(self, X):
-        return self.model(X)
+    def __call__(self, x):
+        return self.model(x)
 
 
 class AvgSeqDenseModel(BasicModel):
@@ -209,14 +232,15 @@ class AvgSeqDenseModel(BasicModel):
     def __init__(self):
         super(AvgSeqDenseModel, self).__init__()
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
 
-        def avg_embedding(X):
-            X = K.mean(X, axis=1)
-            return Reshape([self.word_vec_dim])(X)
+        def avg_embedding(x):
+            x = tf.reduce_mean(x, axis=1, keepdims=True)
+            # return Reshape([self.word_vec_dim])(X)
+            return tf.reshape(x, [-1, self.word_vec_dim])
 
         def avg_embedding_output_shape(input_shape):
-            ret_shape = self.batch_samples_number, input_shape[2]
+            ret_shape = self.batch_size, input_shape[2]
             return tuple(ret_shape)
 
         avg_seq = Lambda(function=avg_embedding,
@@ -224,16 +248,18 @@ class AvgSeqDenseModel(BasicModel):
                          name='seq_avg')
         src1_encoding = avg_seq(src1_word_vec_seq)
         src2_encoding = avg_seq(src2_word_vec_seq)
-        assert avg_seq.get_output_shape_at(0) == (self.batch_samples_number, self.word_vec_dim)
-        assert avg_seq.get_output_shape_at(1) == (self.batch_samples_number, self.word_vec_dim)
+        assert avg_seq.get_output_shape_at(0) == (self.batch_size, self.word_vec_dim)
+        assert avg_seq.get_output_shape_at(1) == (self.batch_size, self.word_vec_dim)
 
+        p_dropout = self.hyperparams.p_dropout
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
-        middle_vec = Dropout(net_conf.DROPOUT_RATE)(merged_vec)
+        middle_vec = Dropout(p_dropout)(merged_vec)
 
-        dense_layer_num = 3
+        dense_layer_num = self.hyperparams.dense_layer_num
+        linear_unit_num = self.hyperparams.linear_unit_num
         for _ in range(dense_layer_num):
-            middle_vec = Dense(64, activation='relu')(middle_vec)
-            middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
+            middle_vec = Dense(linear_unit_num, activation='relu')(middle_vec)
+            middle_vec = Dropout(p_dropout)(middle_vec)
 
         preds = Dense(1, activation='sigmoid', name='sigmoid_output_layer')(middle_vec)
         return preds
@@ -243,22 +269,24 @@ class StackedBiLSTMDenseModel(BasicModel):
     def __init__(self):
         super(StackedBiLSTMDenseModel, self).__init__()
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
-        input_dropout = Dropout(net_conf.DROPOUT_RATE, name='input_dropout')
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
+        p_dropout = self.hyperparams.p_dropout
+        input_dropout = Dropout(p_dropout, name='input_dropout')
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
         src2_hidden_seq = input_dropout(src2_word_vec_seq)
 
-        bilstm_retseq_layer_num = 2
+        bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
+        state_dim = self.hyperparams.state_dim
         for _ in range(bilstm_retseq_layer_num):
-            this_bilstm = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM, return_sequences=True), merge_mode='concat')
-            this_dropout = Dropout(net_conf.DROPOUT_RATE)
+            this_bilstm = Bidirectional(LSTM(state_dim, return_sequences=True), merge_mode='concat')
+            this_dropout = Dropout(p_dropout)
             src1_hidden_seq = this_bilstm(src1_hidden_seq)
             src2_hidden_seq = this_bilstm(src2_hidden_seq)
             src1_hidden_seq = this_dropout(src1_hidden_seq)
             src2_hidden_seq = this_dropout(src2_hidden_seq)
 
-        enc_bilstm = Bidirectional(LSTM(net_conf.HIDDEN_STATE_DIM), name='enc_bilstm')
-        enc_dropout = Dropout(net_conf.DROPOUT_RATE, name='enc_dropout')
+        enc_bilstm = Bidirectional(LSTM(state_dim), name='enc_bilstm')
+        enc_dropout = Dropout(p_dropout, name='enc_dropout')
         src1_encoding = enc_bilstm(src1_hidden_seq)
         src2_encoding = enc_bilstm(src2_hidden_seq)
         src1_encoding = enc_dropout(src1_encoding)
@@ -267,18 +295,62 @@ class StackedBiLSTMDenseModel(BasicModel):
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
         middle_vec = merged_vec
 
-        dense_layer_num = 3
+        dense_layer_num = self.hyperparams.dense_layer_num
         for _ in range(dense_layer_num):
-            middle_vec = Dense(64, activation='relu')(middle_vec)
-            middle_vec = Dropout(net_conf.DROPOUT_RATE)(middle_vec)
+            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
+            middle_vec = Dropout(p_dropout)(middle_vec)
 
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 
 
-class TransformerDenseModel(BasicModel):
+class TransformerEncoderDenseModel(BasicModel):
     def __init__(self):
-        super(TransformerDenseModel, self).__init__()
+        super(TransformerEncoderDenseModel, self).__init__()
 
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, hyperparams=None):
-        pass
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
+        d_model = self.hyperparams.d_model
+        d_inner_hid = self.hyperparams.d_inner_hid
+        n_head = self.hyperparams.n_head
+        d_k = d_v = self.hyperparams.d_k
+        d_pos_enc = self.hyperparams.d_pos_enc
+        len_limit = self.max_seq_len
+        layers_num = self.hyperparams.layers_num
+        p_dropout = self.hyperparams.p_dropout
+
+        # 位置编号从1开始
+        # word id亦从1开始
+        pos_enc_layer = Embedding(len_limit+1, d_pos_enc, trainable=False,
+                                  weights=[transformer.get_pos_enc_matrix(len_limit+1, d_pos_enc)],
+                                  name='pos_enc_layer')
+        transformer_encoder = transformer.Encoder(d_model, d_inner_hid, n_head, d_k, d_v,
+                                                  layers_num=layers_num,
+                                                  p_dropout=p_dropout,
+                                                  pos_enc_layer=pos_enc_layer)
+        src1_pos = Lambda(transformer.get_pos_seq)(src1_seq)
+        src2_pos = Lambda(transformer.get_pos_seq)(src2_seq)
+        src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
+        src2_seq_repr_seq = transformer_encoder(src2_word_vec_seq, src2_seq, src_pos=src2_pos)
+
+        def avg_embedding(x):
+            x = K.mean(x, axis=1, keepdims=True)
+            return K.reshape(x, [-1, d_model])
+
+        avg_seq = Lambda(function=avg_embedding, name='seq_avg')
+
+        src1_encoding = avg_seq(src1_seq_repr_seq)
+        src2_encoding = avg_seq(src2_seq_repr_seq)
+        assert avg_seq.get_output_shape_at(0) == (self.batch_size, d_model)
+        assert avg_seq.get_output_shape_at(1) == (self.batch_size, d_model)
+
+        merged_vec = K.concatenate([src1_encoding, src2_encoding])
+        middle_vec = merged_vec
+
+        dense_layer_num = self.hyperparams.dense_layer_num
+        dense_p_dropout = self.hyperparams.dense_p_dropout
+        for _ in range(dense_layer_num):
+            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
+            middle_vec = Dropout(dense_p_dropout)(middle_vec)
+
+        preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
+        return preds
