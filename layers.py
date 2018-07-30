@@ -10,14 +10,22 @@ class AvgEmb(Layer):
         super(AvgEmb, self).__init__(**kwargs)
         self.word_vec_dim = word_vec_dim
 
+    # 模板方法模式
     def call(self, inputs, **kwargs):
         inputs = tf.reduce_mean(inputs, axis=1, keepdims=True)
         # return Reshape([self.word_vec_dim])(X)
         return tf.reshape(inputs, [-1, self.word_vec_dim])
 
+    # 由于是静态计算图的框架，shape都并不可靠，可能不是预期的值
+    # 尽量使用已知值
     def compute_output_shape(self, input_shape, **kwargs):
-        return input_shape[0], input_shape[2]
+        return input_shape[0], self.word_vec_dim
 
+    # 和保存相关的方法
+    # config = layer.get_config() or model.get_config() => 包含这个层配置信息的dict
+    # layer = Layer.from_config(config) or
+    # model = Model.from_config(config) or Sequential.from_config(config)
+    # 由于Keras其他层没有重写from_config方法，我的自定义层也不重写
     def get_config(self):
         config = {'word_vec_dim': self.word_vec_dim}
         base_config = super(AvgEmb, self).get_config()
