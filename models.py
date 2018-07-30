@@ -317,20 +317,23 @@ class TransformerEncoderDenseModel(BasicModel):
                                                   pos_enc_layer=pos_enc_layer,
                                                   mode=self.hyperparams.transformer_mode,
                                                   batch_size=self.batch_size)
-        src1_pos = Lambda(transformer.get_pos_seq)(src1_seq)
-        src2_pos = Lambda(transformer.get_pos_seq)(src2_seq)
+        get_pos_seq = Lambda(transformer.get_pos_seq)
+        src1_pos = get_pos_seq(src1_seq)
+        src2_pos = get_pos_seq(src2_seq)
         src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
         src2_seq_repr_seq = transformer_encoder(src2_word_vec_seq, src2_seq, src_pos=src2_pos)
 
-        # TODO mask 操作
-        def avg_embedding(x):
-            x = K.mean(x, axis=1, keepdims=True)
-            return K.reshape(x, [-1, d_model])
+        # mask操作，只对非占位符的部分求平均
+        def masked_avg_emb(src_seq_repr_seq, src_seq):
+            mask = K.cast(K.expand_dims(K.not_equal(src_seq, 0), -1), 'float32')
+            src_seq_repr_seq = src_seq_repr_seq * mask
+            src_seq_repr_seq = K.mean(src_seq_repr_seq, axis=1, keepdims=True)
+            return K.reshape(src_seq_repr_seq, [-1, d_model])
 
-        avg_seq = Lambda(function=avg_embedding, name='seq_avg')
+        masked_avg_seq = Lambda(lambda x: masked_avg_emb(x[0], x[1]), name='seq_avg')
 
-        src1_encoding = avg_seq(src1_seq_repr_seq)
-        src2_encoding = avg_seq(src2_seq_repr_seq)
+        src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
+        src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
 
         # input tensor => 一系列的Keras层 => output tensor
         # 如果使用了backend函数，例如K.concatenate()或tf.reduce_mean()等，需要使用Lambda层封装它们

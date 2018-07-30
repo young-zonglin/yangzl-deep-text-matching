@@ -178,14 +178,14 @@ def get_pos_enc_matrix(max_len, d_emb):
     :return: matrix, like word embedding matrix
     """
     # TODO 这个函数还有待进一步学习
-    pos2enc = np.array([
+    pos_enc_matrix = np.array([
         [pos / np.power(10000, 2 * (j // 2) / d_emb) for j in range(d_emb)]
         if pos != 0 else np.zeros(d_emb)
         for pos in range(max_len)
     ])
-    pos2enc[1:, 0::2] = np.sin(pos2enc[1:, 0::2])  # dim 2i
-    pos2enc[1:, 1::2] = np.cos(pos2enc[1:, 1::2])  # dim 2i+1
-    return pos2enc
+    pos_enc_matrix[1:, 0::2] = np.sin(pos_enc_matrix[1:, 0::2])  # dim 2i
+    pos_enc_matrix[1:, 1::2] = np.cos(pos_enc_matrix[1:, 1::2])  # dim 2i+1
+    return pos_enc_matrix
 
 
 def get_pad_mask(q, k):
