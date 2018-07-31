@@ -1,3 +1,4 @@
+import os
 import time
 
 import keras
@@ -8,6 +9,7 @@ from keras.models import Model
 from keras.models import load_model
 
 import net_conf
+import params
 import reader
 import tools
 import transformer
@@ -21,6 +23,7 @@ class BasicModel:
         self.vocab_size = None
         self.word_vec_dim = None
         self.batch_size = None
+        self.this_model_save_dir = None
 
         self.pretrained_word_vecs_fname = None
         self.raw_fname = None
@@ -61,6 +64,16 @@ class BasicModel:
         self.val_fname = val_fname
         self.test_fname = test_fname
 
+        run_which_model = net_conf.RUN_WHICH_MODEL
+        which_language = net_conf.WHICH_LANGUAGE
+        setup_time = tools.get_current_time()
+        self.this_model_save_dir = \
+            params.RESULT_SAVE_DIR + os.path.sep + \
+            run_which_model + '_' + which_language + '_' + setup_time
+        if not os.path.exists(self.this_model_save_dir):
+            os.makedirs(self.this_model_save_dir)
+        params.MODEL_SAVE_DIR = self.this_model_save_dir
+
         self.hyperparams = hyperparams
         self.batch_size = self.hyperparams.batch_size
         self.tokenizer = reader.fit_tokenizer(self.raw_fname)
@@ -87,13 +100,17 @@ class BasicModel:
                     max_len = length
         self.max_seq_len = max_len
 
-        print('\n================ In setup ================')
-        print('Vocab size: %d' % self.vocab_size)
-        print('Max sentence length: {}'.format(self.max_seq_len))
-        print('Total samples count: %d' % self.total_samples_count)
-        print('Train samples count: %d' % self.train_samples_count)
-        print('Val samples count: %d' % self.val_samples_count)
-        print('Test samples count: %d' % self.test_samples_count)
+        record_info = list()
+        record_info.append('\n================ In setup ================\n')
+        record_info.append('Vocab size: %d\n' % self.vocab_size)
+        record_info.append('Max sentence length: {}\n'.format(self.max_seq_len))
+        record_info.append('Total samples count: %d\n' % self.total_samples_count)
+        record_info.append('Train samples count: %d\n' % self.train_samples_count)
+        record_info.append('Val samples count: %d\n' % self.val_samples_count)
+        record_info.append('Test samples count: %d\n' % self.test_samples_count)
+        record_str = ''.join(record_info)
+        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        tools.print_save_str(record_str, record_url)
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
         raise NotImplementedError()
@@ -132,12 +149,19 @@ class BasicModel:
         preds = self._do_build(src1_word_vec_seq, src2_word_vec_seq, source1, source2)
         self.model = Model(inputs=[source1, source2], outputs=preds)
 
-        print('\n================ In build ================')
-        print('Found %d word vectors.' % len(word2vec))
+        record_info = list()
+        record_info.append('\n================ In build ================\n')
+        record_info.append('Found %d word vectors.' % len(word2vec))
+        record_str = ''.join(record_info)
+        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        tools.print_save_str(record_str, record_url)
         print('\n############### Model summary ##################')
         print(self.model.summary())
+
         return self.model
 
+    # TODO 优化算法，学习率等
+    # TODO 动态学习率
     def compile(self):
         self.model.compile(loss='binary_crossentropy',
                            optimizer='rmsprop',
@@ -165,38 +189,9 @@ class BasicModel:
                                                                                            self.cut),
                                            validation_steps=self.val_samples_count / self.batch_size,
                                            steps_per_epoch=self.train_samples_count / self.batch_size,
-                                           epochs=self.hyperparams.train_epoch_times, verbose=1,
+                                           epochs=self.hyperparams.train_epoch_times, verbose=2,
                                            callbacks=[save_model, early_stopping])
-
-        print('\n========================== history ===========================')
-        acc = history.history.get('acc')
-        loss = history.history['loss']
-        val_acc = history.history['val_acc']
-        val_loss = history.history['val_loss']
-        print('train acc:', acc)
-        print('train loss', loss)
-        print('val acc', val_acc)
-        print('val loss', val_loss)
-        print('\n======================= acc & loss & val_acc & val_loss ============================')
-        for i in range(len(acc)):
-            print('epoch {0:<4} | acc: {1:6.3f}% | loss: {2:<10.5f} |'
-                  ' val_acc: {3:6.3f}% | val_loss: {4:<10.5f}'.format(i + 1,
-                                                                      acc[i] * 100, loss[i],
-                                                                      val_acc[i] * 100, val_loss[i]))
-
-        train_end = float(time.time())
-        train_time = train_end - train_start
-        print('\n================ Train end ================')
-        print('Train time: {0:.2f}s'.format(train_time))
-
-        # 训练完毕后，将每轮迭代的acc、loss、val_acc、val_loss以画图的形式进行展示 => done
-        plt_x = [x+1 for x in range(len(acc))]
-        plt_acc = plt_x, acc
-        plt_loss = plt_x, loss
-        plt_val_acc = plt_x, val_acc
-        plt_val_loss = plt_x, val_loss
-        tools.plot_figure('acc & loss & val_acc & val_loss',
-                          plt_acc, plt_loss, plt_val_acc, plt_val_loss)
+        tools.show_save_record(history, train_start)
 
     def evaluate_generator(self):
         scores = self.model.evaluate_generator(generator=reader.generate_batch_data_file(self.test_fname,
@@ -206,9 +201,13 @@ class BasicModel:
                                                                                          self.pad,
                                                                                          self.cut),
                                                steps=self.test_samples_count / self.batch_size)
-        print("\n================== 性能评估 ==================")
-        print("%s: %.4f" % (self.model.metrics_names[0], scores[0]))
-        print("%s: %.2f%%" % (self.model.metrics_names[1], scores[1] * 100))
+        record_info = list()
+        record_info.append("\n================== 性能评估 ==================\n")
+        record_info.append("%s: %.4f\n" % (self.model.metrics_names[0], scores[0]))
+        record_info.append("%s: %.2f%%\n" % (self.model.metrics_names[1], scores[1] * 100))
+        record_str = ''.join(record_info)
+        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        tools.print_save_str(record_str, record_url)
 
     def save(self, model_url):
         self.model.save(model_url)
@@ -263,6 +262,7 @@ class StackedBiLSTMDenseModel(BasicModel):
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
         src2_hidden_seq = input_dropout(src2_word_vec_seq)
 
+        # TODO 解决过拟合的问题
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
         state_dim = self.hyperparams.state_dim
         for _ in range(bilstm_retseq_layer_num):
@@ -330,8 +330,10 @@ class TransformerEncoderDenseModel(BasicModel):
             src_seq_repr_seq = K.mean(src_seq_repr_seq, axis=1, keepdims=True)
             return K.reshape(src_seq_repr_seq, [-1, d_model])
 
-        masked_avg_seq = Lambda(lambda x: masked_avg_emb(x[0], x[1]), name='seq_avg')
+        masked_avg_seq = Lambda(lambda x: masked_avg_emb(x[0], x[1]), name='masked_seq_avg')
 
+        # TODO 感觉求平均有点问题，试试用LTSM编码
+        # TODO 训练不收敛
         src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
         src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
 

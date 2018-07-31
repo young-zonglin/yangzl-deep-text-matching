@@ -1,4 +1,5 @@
 import io
+import os
 import re
 
 import nltk
@@ -162,6 +163,10 @@ def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
     :param test_fname:
     :return: None
     """
+    if os.path.exists(train_fname) and os.path.exists(val_fname) and os.path.exists(test_fname):
+        print('\n======== In split_train_val_test function ========')
+        print('Train, val and test data already exists')
+        return
     with open(raw_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as raw_file, \
             open(train_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as train_file, \
             open(val_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as val_file, \

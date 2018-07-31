@@ -1,8 +1,7 @@
 # path-to-ignore
 .idea/
 data/
-figure/
-model_trained/
+result/
 
 # Python.gitignore
 

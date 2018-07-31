@@ -1,8 +1,10 @@
 import os
 
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
-FIGURE_DIR = os.path.join(PROJECT_ROOT, 'figure')
-MODEL_SAVE_DIR = os.path.join(PROJECT_ROOT, 'model_trained')
+RESULT_SAVE_DIR = os.path.join(PROJECT_ROOT, 'result')
+MODEL_SAVE_DIR = ''
+
+TRAIN_RECORD_FNAME = 'a.train.result.record'
 
 # raw data
 RAW_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'raw_data')
