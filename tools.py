@@ -84,6 +84,7 @@ def plot_figure(figure_name, model_name, x_label, y_label, *args):
     plt.show()  # it is a blocking function
 
 
+# TODO 使用ModelCheckpoint
 class SaveModel(Callback):
     def __init__(self):
         super(SaveModel, self).__init__()
@@ -96,6 +97,11 @@ class SaveModel(Callback):
         self.model.save(save_url)
         print("================== 保存模型 ==================")
         print(net_conf.RUN_WHICH_MODEL, 'has been saved in', save_url, '\n')
+
+
+class LRSchedulerDoNothing(Callback):
+    def __init__(self):
+        super(LRSchedulerDoNothing, self).__init__()
 
 
 def show_save_record(history, train_begin_time):

@@ -1,9 +1,14 @@
+from keras.optimizers import Adam, RMSprop
+
+from tools import LRSchedulerDoNothing
+from transformer import LRSchedulerPerStep
+
 # TODO 网格搜索
 GRID_SEARCH = True
 
 # AvgSeqDenseModel | StackedBiLSTMDenseModel |
 # TransformerEncoderDenseModel | TransformerDenseModelTest |
-RUN_WHICH_MODEL = 'StackedBiLSTMDenseModel'
+RUN_WHICH_MODEL = 'TransformerEncoderDenseModel'
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -39,6 +44,9 @@ class AvgSeqDenseParams:
     dense_layer_num = 3
     linear_unit_num = 64
 
+    optimizer = RMSprop()
+    lr_scheduler = LRSchedulerDoNothing()
+
     pad = 'pre'
     cut = 'pre'
 
@@ -54,6 +62,9 @@ class StackedBiLSTMDenseParams:
     state_dim = 50
     dense_layer_num = 3
     linear_unit_num = 64
+
+    optimizer = RMSprop()
+    lr_scheduler = LRSchedulerDoNothing()
 
     pad = 'pre'
     cut = 'pre'
@@ -76,15 +87,18 @@ class TransformerDenseParamsTest:
     n_head = 5  # h head
     d_k = d_v = int(d_model/n_head)
     d_pos_enc = d_model
+    p_dropout = 0.1
 
     dense_layer_num = 1
     linear_unit_num = 32
     dense_p_dropout = 0.5
 
+    optimizer = Adam(0.001, 0.9, 0.98, epsilon=1e-9)
+    lr_scheduler = LRSchedulerPerStep(d_model, 4000)
+
     pad = 'post'
     cut = 'post'
 
-    p_dropout = 0.1
     early_stop_patience = 1
     early_stop_min_delta = 1e-4
     train_epoch_times = 5
@@ -100,16 +114,23 @@ class TransformerEncoderDenseParams:
     n_head = 5  # h head
     d_k = d_v = int(d_model/n_head)
     d_pos_enc = d_model
+    p_dropout = 0.1
 
-    dense_layer_num = 2
+    bilstm_retseq_layer_num = 1
+    state_dim = 50
+    lstm_p_dropout = 0.5
+
+    dense_layer_num = 1
     linear_unit_num = 64
     dense_p_dropout = 0.5
+
+    optimizer = Adam(0.001, 0.9, 0.98, epsilon=1e-9)
+    lr_scheduler = LRSchedulerPerStep(d_model, 4000)
 
     pad = 'post'
     cut = 'post'
 
-    p_dropout = 0.1
     early_stop_patience = 30
     early_stop_min_delta = 1e-4
     train_epoch_times = 1000
-    batch_size = 128  # 32 64 128 256
+    batch_size = 64  # 32 64 128 256

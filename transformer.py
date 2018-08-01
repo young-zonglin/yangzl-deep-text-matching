@@ -4,6 +4,7 @@ https://github.com/Lsdefine/attention-is-all-you-need-keras
 """
 import numpy as np
 from keras import backend as K
+from keras.callbacks import Callback
 from keras.engine.topology import Layer
 from keras.initializers import Ones, Zeros
 from keras.layers import Activation, Dense, Dropout, Conv1D
@@ -238,3 +239,16 @@ class Encoder:
             if return_attn:
                 attns.append(attn)
         return (x, attns) if return_attn else x
+
+
+class LRSchedulerPerStep(Callback):
+    def __init__(self, d_model, warmup=4000):
+        super(LRSchedulerPerStep, self).__init__()
+        self.basic = d_model**-0.5
+        self.warm = warmup**-1.5
+        self.step_num = 0
+
+    def on_batch_begin(self, batch, logs = None):
+        self.step_num += 1
+        lr = self.basic * min(self.step_num**-0.5, self.step_num*self.warm)
+        K.set_value(self.model.optimizer.lr, lr)

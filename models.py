@@ -4,9 +4,10 @@ import time
 import keras
 from keras import backend as K
 from keras.callbacks import EarlyStopping
-from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional
+from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional, Activation
 from keras.models import Model
 from keras.models import load_model
+from keras.utils import plot_model
 
 import net_conf
 import params
@@ -156,7 +157,7 @@ class BasicModel:
         record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
         tools.print_save_str(record_str, record_url)
         print('\n############### Model summary ##################')
-        print(self.model.summary())
+        self.model.summary()
 
         return self.model
 
@@ -164,8 +165,13 @@ class BasicModel:
     # TODO 动态学习率
     def compile(self):
         self.model.compile(loss='binary_crossentropy',
-                           optimizer='rmsprop',
+                           optimizer=self.hyperparams.optimizer,
                            metrics=['accuracy'])
+
+        # Transformer-based model的图太复杂太乱，没有看的必要
+        # 不要在IDE中打开，否则会直接OOM
+        # model_vis_url = params.MODEL_SAVE_DIR + os.path.sep + params.MODEL_VIS_FNAME
+        # plot_model(self.model, to_file=model_vis_url, show_shapes=True, show_layer_names=True)
 
     def fit_generator(self):
         train_start = float(time.time())
@@ -175,6 +181,8 @@ class BasicModel:
                                        verbose=1, mode='min')
         save_model = tools.SaveModel()
         save_model.set_model(self.model)
+        lr_scheduler = self.hyperparams.lr_scheduler
+        # model_saver = ModelCheckpoint(mfile, save_best_only=True, save_weights_only=True)
         history = self.model.fit_generator(reader.generate_batch_data_file(self.train_fname,
                                                                            self.tokenizer,
                                                                            self.max_seq_len,
@@ -190,7 +198,7 @@ class BasicModel:
                                            validation_steps=self.val_samples_count / self.batch_size,
                                            steps_per_epoch=self.train_samples_count / self.batch_size,
                                            epochs=self.hyperparams.train_epoch_times, verbose=2,
-                                           callbacks=[save_model, early_stopping])
+                                           callbacks=[save_model, early_stopping, lr_scheduler])
         tools.show_save_record(history, train_start)
 
     def evaluate_generator(self):
@@ -224,10 +232,6 @@ class BasicModel:
 
 
 class AvgSeqDenseModel(BasicModel):
-    """
-    Do not use this model!
-    There are some unknown errors with the Lamda layer, which makes model fail to save.
-    """
     def __init__(self):
         super(AvgSeqDenseModel, self).__init__()
 
@@ -263,6 +267,12 @@ class StackedBiLSTMDenseModel(BasicModel):
         src2_hidden_seq = input_dropout(src2_word_vec_seq)
 
         # TODO 解决过拟合的问题
+        # 过拟合的症状 => 训练集损失还在下降，val loss开始震荡
+        # 过拟合的解决方案 =>
+        # 正则化技术 => L1、L2正则项; Max-Norm Regularization; Dropout; LN和BN
+        # 更多的数据 => 数据增强
+        # 更小规模的网络
+        # 提前结束训练
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
         state_dim = self.hyperparams.state_dim
         for _ in range(bilstm_retseq_layer_num):
@@ -317,7 +327,7 @@ class TransformerEncoderDenseModel(BasicModel):
                                                   pos_enc_layer=pos_enc_layer,
                                                   mode=self.hyperparams.transformer_mode,
                                                   batch_size=self.batch_size)
-        get_pos_seq = Lambda(transformer.get_pos_seq)
+        get_pos_seq = Lambda(transformer.get_pos_seq, name='get_pos_seq')
         src1_pos = get_pos_seq(src1_seq)
         src2_pos = get_pos_seq(src2_seq)
         src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
@@ -331,11 +341,34 @@ class TransformerEncoderDenseModel(BasicModel):
             return K.reshape(src_seq_repr_seq, [-1, d_model])
 
         masked_avg_seq = Lambda(lambda x: masked_avg_emb(x[0], x[1]), name='masked_seq_avg')
+        # src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
+        # src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
 
-        # TODO 感觉求平均有点问题，试试用LTSM编码
-        # TODO 训练不收敛
-        src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
-        src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
+        # 训练不收敛 => done
+        # 训练集较小，且模型参数较多，学习能力较强，应该不是欠拟合
+        # 输入数据有问题？ => 不是的，可以训练LSTM-based model
+        # 模型设计有问题？ => 感觉求平均有点问题，试试用LTSM编码 => 失败了
+        # 喂给Encoder的数据有问题？ => 打印看看
+        # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
+        # 陷入局部最优？ => 学习率？
+        bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
+        state_dim = self.hyperparams.state_dim
+        lstm_p_dropout = self.hyperparams.lstm_p_dropout
+
+        for _ in range(bilstm_retseq_layer_num):
+            this_bilstm = Bidirectional(LSTM(state_dim, return_sequences=True), merge_mode='concat')
+            this_dropout = Dropout(lstm_p_dropout)
+            src1_seq_repr_seq = this_bilstm(src1_seq_repr_seq)
+            src2_seq_repr_seq = this_bilstm(src2_seq_repr_seq)
+            src1_seq_repr_seq = this_dropout(src1_seq_repr_seq)
+            src2_seq_repr_seq = this_dropout(src2_seq_repr_seq)
+
+        enc_bilstm = Bidirectional(LSTM(state_dim), name='enc_bilstm')
+        enc_dropout = Dropout(lstm_p_dropout, name='enc_dropout')
+        src1_encoding = enc_bilstm(src1_seq_repr_seq)
+        src2_encoding = enc_bilstm(src2_seq_repr_seq)
+        src1_encoding = enc_dropout(src1_encoding)
+        src2_encoding = enc_dropout(src2_encoding)
 
         # input tensor => 一系列的Keras层 => output tensor
         # 如果使用了backend函数，例如K.concatenate()或tf.reduce_mean()等，需要使用Lambda层封装它们
@@ -346,6 +379,11 @@ class TransformerEncoderDenseModel(BasicModel):
         dense_p_dropout = self.hyperparams.dense_p_dropout
         for _ in range(dense_layer_num):
             middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
+            # 学习Keras的激活层
+            # middle_vec = Activation('relu')(middle_vec)
+            # middle_vec = Activation(keras.activations.relu)(middle_vec)
+            # middle_vec = Activation(K.relu)(middle_vec)
+            # middle_vec = keras.layers.ReLU()(middle_vec)
             middle_vec = Dropout(dense_p_dropout)(middle_vec)
 
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
