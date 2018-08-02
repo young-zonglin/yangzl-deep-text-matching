@@ -85,8 +85,8 @@ class RNMTPlusEncoderDenseParams:
     state_dim = 100
     lstm_p_dropout = 0.5
 
-    dense_layer_num = 2
-    linear_unit_num = 128
+    dense_layer_num = 3
+    initial_unit_num = 256
     dense_p_dropout = 0.5
 
     optimizer = RMSprop()
@@ -116,8 +116,8 @@ class TransformerEncoderDenseParams:
     state_dim = 100
     lstm_p_dropout = 0.5
 
-    dense_layer_num = 0
-    linear_unit_num = 256
+    dense_layer_num = 3
+    initial_unit_num = 256
     dense_p_dropout = 0.5
 
     warmup_step = 2000

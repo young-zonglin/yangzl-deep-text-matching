@@ -14,7 +14,7 @@ import params
 import reader
 import tools
 import transformer
-from layers import AvgEmb
+from layers import AvgEmb, UnitReduceDense
 import RNMT_plus
 
 
@@ -328,12 +328,10 @@ class RNMTPlusEncoderDenseModel(BasicModel):
         src2_encoding = RNMT_plus_encoder(src2_word_vec_seq)
 
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
-        middle_vec = merged_vec
-
-        for _ in range(self.hyperparams.dense_layer_num):
-            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
-            middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
-
+        middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
+                                     self.hyperparams.initial_unit_num,
+                                     self.hyperparams.dense_p_dropout,
+                                     name='unit_reduce_dense')(merged_vec)
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 
@@ -388,20 +386,16 @@ class TransformerEncoderDenseModel(BasicModel):
         # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
         # 陷入局部最优？ =>
         # 学习率调度策略是否合理？ => warm up step, lr up, then, down
-        bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
-        state_dim = self.hyperparams.state_dim
-        lstm_p_dropout = self.hyperparams.lstm_p_dropout
-
-        for _ in range(bilstm_retseq_layer_num):
-            this_bilstm = Bidirectional(LSTM(state_dim, return_sequences=True), merge_mode='concat')
-            this_dropout = Dropout(lstm_p_dropout)
+        for _ in range(self.hyperparams.bilstm_retseq_layer_num):
+            this_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim, return_sequences=True), merge_mode='concat')
+            this_dropout = Dropout(self.hyperparams.lstm_p_dropout)
             src1_seq_repr_seq = this_bilstm(src1_seq_repr_seq)
             src2_seq_repr_seq = this_bilstm(src2_seq_repr_seq)
             src1_seq_repr_seq = this_dropout(src1_seq_repr_seq)
             src2_seq_repr_seq = this_dropout(src2_seq_repr_seq)
 
-        enc_bilstm = Bidirectional(LSTM(state_dim), name='enc_bilstm')
-        enc_dropout = Dropout(lstm_p_dropout, name='enc_dropout')
+        enc_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim), name='enc_bilstm')
+        enc_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='enc_dropout')
         src1_encoding = enc_bilstm(src1_seq_repr_seq)
         src2_encoding = enc_bilstm(src2_seq_repr_seq)
         src1_encoding = enc_dropout(src1_encoding)
@@ -410,18 +404,16 @@ class TransformerEncoderDenseModel(BasicModel):
         # input tensor => 一系列的Keras层 => output tensor
         # 如果使用了backend函数，例如K.concatenate()或tf.reduce_mean()等，需要使用Lambda层封装它们
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding])
-        middle_vec = merged_vec
-
-        dense_layer_num = self.hyperparams.dense_layer_num
-        dense_p_dropout = self.hyperparams.dense_p_dropout
-        for _ in range(dense_layer_num):
-            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
-            # 学习Keras的激活层
-            # middle_vec = Activation('relu')(middle_vec)
-            # middle_vec = Activation(keras.activations.relu)(middle_vec)
-            # middle_vec = Activation(K.relu)(middle_vec)
-            # middle_vec = keras.layers.ReLU()(middle_vec)
-            middle_vec = Dropout(dense_p_dropout)(middle_vec)
-
+        middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
+                                     self.hyperparams.initial_unit_num,
+                                     self.hyperparams.dense_p_dropout,
+                                     name='unit_reduce_dense')(merged_vec)
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
+
+# 学习Keras的激活层
+# middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
+# middle_vec = Activation('relu')(middle_vec)
+# middle_vec = Activation(keras.activations.relu)(middle_vec)
+# middle_vec = Activation(K.relu)(middle_vec)
+# middle_vec = keras.layers.ReLU()(middle_vec)

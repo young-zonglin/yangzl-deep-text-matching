@@ -2,8 +2,38 @@ import tensorflow as tf
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras.initializers import Ones, Zeros
+from keras.layers import Dense, Dropout
 
 import transformer
+
+
+class UnitReduceDense(Layer):
+    def __init__(self, layer_num, initial_unit_num, p_dropout, **kwargs):
+        Layer.__init__(self, **kwargs)
+        self.layer_num = layer_num
+        self.initial_unit_num = initial_unit_num
+        self.p_dropout = p_dropout
+        self.layers = []
+        for i in range(layer_num):
+            self.current_unit_num = max(int(initial_unit_num/(2**i)), 32)
+            self.layers.append(Dense(self.current_unit_num, activation='relu'))
+            self.layers.append(Dropout(p_dropout))
+
+    def call(self, inputs, **kwargs):
+        x = inputs
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0], self.current_unit_num
+
+    def get_config(self):
+        config = {'layer_num': self.layer_num,
+                  'initial_unit_num': self.initial_unit_num,
+                  'p_dropout': self.p_dropout}
+        base_config = Layer.get_config(self)
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class LayerNormalization(Layer):
@@ -32,6 +62,11 @@ class LayerNormalization(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape
 
+    def get_config(self):
+        config = {'eps': self.eps}
+        base_config = super(LayerNormalization, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class AvgEmb(Layer):
     def __init__(self, word_vec_dim, **kwargs):
@@ -57,6 +92,35 @@ class AvgEmb(Layer):
     def get_config(self):
         config = {'word_vec_dim': self.word_vec_dim}
         base_config = super(AvgEmb, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class Repeat(Layer):
+    def __init__(self, rep, axis, batch_size, **kwargs):
+        Layer.__init__(self, **kwargs)
+        self.rep = rep
+        self.axis = axis
+        self.batch_size = batch_size
+
+    def call(self, inputs, **kwargs):
+        return K.repeat_elements(inputs, self.rep, self.axis)
+
+    def compute_output_shape(self, input_shape):
+        axis = self.axis
+        if axis == 0:
+            return self.rep*self.batch_size, input_shape[1], input_shape[2]
+        elif axis == 1:
+            return self.batch_size, self.rep*input_shape[1], input_shape[2]
+        elif axis == 2:
+            return self.batch_size, input_shape[1], self.rep*input_shape[2]
+        else:
+            raise ValueError('axis not in [0, 1, 2]')
+
+    def get_config(self):
+        config = {'rep': self.rep,
+                  'axis': self.axis,
+                  'batch_size': self.batch_size}
+        base_config = Layer.get_config(self)
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -156,35 +220,6 @@ class Reshape2(Layer):
                   'd_v': self.d_v,
                   'batch_size': self.batch_size}
         base_config = super(Reshape2, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-class Repeat(Layer):
-    def __init__(self, rep, axis=0, batch_size=None, **kwargs):
-        Layer.__init__(self, **kwargs)
-        self.rep = rep
-        self.axis = axis
-        self.batch_size = batch_size
-
-    def call(self, inputs, **kwargs):
-        return K.repeat_elements(inputs, self.rep, self.axis)
-
-    def compute_output_shape(self, input_shape):
-        axis = self.axis
-        if axis == 0:
-            return self.rep*self.batch_size, input_shape[1], input_shape[2]
-        elif axis == 1:
-            return self.batch_size, self.rep*input_shape[1], input_shape[2]
-        elif axis == 2:
-            return self.batch_size, input_shape[1], self.rep*input_shape[2]
-        else:
-            raise ValueError('axis not in [0, 1, 2]')
-
-    def get_config(self):
-        config = {'rep': self.rep,
-                  'axis': self.axis,
-                  'batch_size': self.batch_size}
-        base_config = Layer.get_config(self)
         return dict(list(base_config.items()) + list(config.items()))
 
 
