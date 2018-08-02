@@ -7,8 +7,8 @@ from transformer import LRSchedulerPerStep
 GRID_SEARCH = True
 
 # AvgSeqDenseModel | StackedBiLSTMDenseModel |
-# TransformerEncoderDenseModel |
-RUN_WHICH_MODEL = 'StackedBiLSTMDenseModel'
+# TransformerEncoderDenseModel | RNMTPlusEncoderDenseModel
+RUN_WHICH_MODEL = 'RNMTPlusEncoderDenseModel'
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -28,6 +28,8 @@ def get_hyperparams(model_name):
         return StackedBiLSTMDenseParams()
     elif model_name == 'TransformerEncoderDenseModel':
         return TransformerEncoderDenseParams()
+    elif model_name == 'RNMTPlusEncoderDenseModel':
+        return RNMTPlusEncoderDenseParams()
     else:
         return BasicParams()
 
@@ -75,6 +77,27 @@ class StackedBiLSTMDenseParams:
     train_epoch_times = 1000
     # TODO 超参batch_size的设置
     # TODO 动态batch_size
+    batch_size = 128  # 32 64 128 256
+
+
+class RNMTPlusEncoderDenseParams:
+    retseq_layer_num = 2
+    state_dim = 100
+    lstm_p_dropout = 0.5
+
+    dense_layer_num = 2
+    linear_unit_num = 128
+    dense_p_dropout = 0.5
+
+    optimizer = RMSprop()
+    lr_scheduler = LRSchedulerDoNothing()
+
+    pad = 'pre'
+    cut = 'pre'
+
+    early_stop_patience = 30
+    early_stop_min_delta = 1e-4
+    train_epoch_times = 1000
     batch_size = 128  # 32 64 128 256
 
 

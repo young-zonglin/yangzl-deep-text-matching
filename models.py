@@ -15,6 +15,7 @@ import reader
 import tools
 import transformer
 from layers import AvgEmb
+import RNMT_plus
 
 
 # batch size和seq len随意，word vec dim训练和应用时应一致
@@ -54,6 +55,8 @@ class BasicModel:
             return StackedBiLSTMDenseModel()
         elif model_name == 'TransformerEncoderDenseModel':
             return TransformerEncoderDenseModel()
+        elif model_name == 'RNMTPlusEncoderDenseModel':
+            return RNMTPlusEncoderDenseModel()
         else:
             return BasicModel()
 
@@ -273,7 +276,7 @@ class StackedBiLSTMDenseModel(BasicModel):
         # 过拟合的症状 => 训练集损失还在下降，val loss开始震荡
         # 过拟合的解决方案 =>
         # 正则化技术 => L1、L2正则项; Max-Norm Regularization; Dropout; LN和BN
-        # 更多的数据 => 数据增强
+        # 更多的数据 => 数据增强 => 生成式模型，GANs？
         # 更小规模的网络 => 使用更窄更深的网络 => RNN和CNN都有参数共享 => 模型复杂度和特征维数应与数据规模成正比
         # 提前结束训练
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
@@ -301,6 +304,32 @@ class StackedBiLSTMDenseModel(BasicModel):
         # 如果是两层Dense层 => 借鉴CNN
         # 如果是一层FFN层 => 借鉴Transformer
         # 如果类别数很少，可以多加一些全连接层 => 1024 -> 512 -> 128 -> 2
+        for _ in range(self.hyperparams.dense_layer_num):
+            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
+            middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
+
+        preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
+        return preds
+
+
+class RNMTPlusEncoderDenseModel(BasicModel):
+    def __init__(self):
+        super(RNMTPlusEncoderDenseModel, self).__init__()
+
+    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
+        input_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='input_dropout')
+        src1_word_vec_seq = input_dropout(src1_word_vec_seq)
+        src2_word_vec_seq = input_dropout(src2_word_vec_seq)
+
+        RNMT_plus_encoder = RNMT_plus.Encoder(self.hyperparams.retseq_layer_num,
+                                              self.hyperparams.state_dim,
+                                              self.hyperparams.lstm_p_dropout)
+        src1_encoding = RNMT_plus_encoder(src1_word_vec_seq)
+        src2_encoding = RNMT_plus_encoder(src2_word_vec_seq)
+
+        merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
+        middle_vec = merged_vec
+
         for _ in range(self.hyperparams.dense_layer_num):
             middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
             middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
