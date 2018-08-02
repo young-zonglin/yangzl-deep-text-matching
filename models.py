@@ -3,7 +3,7 @@ import time
 
 import keras
 from keras import backend as K
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional, Activation
 from keras.models import Model
 from keras.models import load_model
@@ -17,6 +17,7 @@ import transformer
 from layers import AvgEmb
 
 
+# batch size和seq len随意，word vec dim训练和应用时应一致
 class BasicModel:
     def __init__(self):
         self.hyperparams = None
@@ -51,7 +52,7 @@ class BasicModel:
             return AvgSeqDenseModel()
         elif model_name == 'StackedBiLSTMDenseModel':
             return StackedBiLSTMDenseModel()
-        elif model_name == 'TransformerEncoderDenseModel' or model_name == 'TransformerDenseModelTest':
+        elif model_name == 'TransformerEncoderDenseModel':
             return TransformerEncoderDenseModel()
         else:
             return BasicModel()
@@ -152,7 +153,7 @@ class BasicModel:
 
         record_info = list()
         record_info.append('\n================ In build ================\n')
-        record_info.append('Found %d word vectors.' % len(word2vec))
+        record_info.append('Found %d word vectors.\n' % len(word2vec))
         record_str = ''.join(record_info)
         record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
         tools.print_save_str(record_str, record_url)
@@ -161,8 +162,8 @@ class BasicModel:
 
         return self.model
 
-    # TODO 优化算法，学习率等
-    # TODO 动态学习率
+    # TODO 优化算法
+    # 动态学习率 => done，在回调中更改学习率
     def compile(self):
         self.model.compile(loss='binary_crossentropy',
                            optimizer=self.hyperparams.optimizer,
@@ -179,10 +180,12 @@ class BasicModel:
                                        patience=self.hyperparams.early_stop_patience,
                                        min_delta=self.hyperparams.early_stop_min_delta,
                                        verbose=1, mode='min')
-        save_model = tools.SaveModel()
-        save_model.set_model(self.model)
+        # callback_instance.set_model(self.model) => set_model方法由Keras调用
         lr_scheduler = self.hyperparams.lr_scheduler
-        # model_saver = ModelCheckpoint(mfile, save_best_only=True, save_weights_only=True)
+        save_url = \
+            params.MODEL_SAVE_DIR + os.path.sep + \
+            'epoch_' + '{epoch:03d}-{val_loss:.4f}' + '.h5'
+        model_saver = ModelCheckpoint(save_url, save_best_only=True, save_weights_only=False, verbose=1)
         history = self.model.fit_generator(reader.generate_batch_data_file(self.train_fname,
                                                                            self.tokenizer,
                                                                            self.max_seq_len,
@@ -198,7 +201,7 @@ class BasicModel:
                                            validation_steps=self.val_samples_count / self.batch_size,
                                            steps_per_epoch=self.train_samples_count / self.batch_size,
                                            epochs=self.hyperparams.train_epoch_times, verbose=2,
-                                           callbacks=[save_model, early_stopping, lr_scheduler])
+                                           callbacks=[model_saver, lr_scheduler, early_stopping])
         tools.show_save_record(history, train_start)
 
     def evaluate_generator(self):
@@ -261,30 +264,30 @@ class StackedBiLSTMDenseModel(BasicModel):
         super(StackedBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        p_dropout = self.hyperparams.p_dropout
-        input_dropout = Dropout(p_dropout, name='input_dropout')
+        lstm_p_dropout = self.hyperparams.lstm_p_dropout
+        input_dropout = Dropout(lstm_p_dropout, name='input_dropout')
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
         src2_hidden_seq = input_dropout(src2_word_vec_seq)
 
-        # TODO 解决过拟合的问题
+        # TODO 解决LSTM-based model过拟合的问题
         # 过拟合的症状 => 训练集损失还在下降，val loss开始震荡
         # 过拟合的解决方案 =>
         # 正则化技术 => L1、L2正则项; Max-Norm Regularization; Dropout; LN和BN
         # 更多的数据 => 数据增强
-        # 更小规模的网络
+        # 更小规模的网络 => 使用更窄更深的网络 => RNN和CNN都有参数共享 => 模型复杂度和特征维数应与数据规模成正比
         # 提前结束训练
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
         state_dim = self.hyperparams.state_dim
         for _ in range(bilstm_retseq_layer_num):
             this_bilstm = Bidirectional(LSTM(state_dim, return_sequences=True), merge_mode='concat')
-            this_dropout = Dropout(p_dropout)
+            this_dropout = Dropout(lstm_p_dropout)
             src1_hidden_seq = this_bilstm(src1_hidden_seq)
             src2_hidden_seq = this_bilstm(src2_hidden_seq)
             src1_hidden_seq = this_dropout(src1_hidden_seq)
             src2_hidden_seq = this_dropout(src2_hidden_seq)
 
         enc_bilstm = Bidirectional(LSTM(state_dim), name='enc_bilstm')
-        enc_dropout = Dropout(p_dropout, name='enc_dropout')
+        enc_dropout = Dropout(lstm_p_dropout, name='enc_dropout')
         src1_encoding = enc_bilstm(src1_hidden_seq)
         src2_encoding = enc_bilstm(src2_hidden_seq)
         src1_encoding = enc_dropout(src1_encoding)
@@ -293,10 +296,14 @@ class StackedBiLSTMDenseModel(BasicModel):
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
         middle_vec = merged_vec
 
-        dense_layer_num = self.hyperparams.dense_layer_num
-        for _ in range(dense_layer_num):
+        # 这里需要做一个融合
+        # 必须使用FCN
+        # 如果是两层Dense层 => 借鉴CNN
+        # 如果是一层FFN层 => 借鉴Transformer
+        # 如果类别数很少，可以多加一些全连接层 => 1024 -> 512 -> 128 -> 2
+        for _ in range(self.hyperparams.dense_layer_num):
             middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
-            middle_vec = Dropout(p_dropout)(middle_vec)
+            middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
 
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
@@ -344,13 +351,14 @@ class TransformerEncoderDenseModel(BasicModel):
         # src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
         # src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
 
-        # 训练不收敛 => done
+        # TODO Transformer Encoder based model训练不收敛
         # 训练集较小，且模型参数较多，学习能力较强，应该不是欠拟合
         # 输入数据有问题？ => 不是的，可以训练LSTM-based model
         # 模型设计有问题？ => 感觉求平均有点问题，试试用LTSM编码 => 失败了
         # 喂给Encoder的数据有问题？ => 打印看看
         # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
-        # 陷入局部最优？ => 学习率？
+        # 陷入局部最优？ =>
+        # 学习率调度策略是否合理？ => warm up step, lr up, then, down
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
         state_dim = self.hyperparams.state_dim
         lstm_p_dropout = self.hyperparams.lstm_p_dropout

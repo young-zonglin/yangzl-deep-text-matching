@@ -84,7 +84,7 @@ def plot_figure(figure_name, model_name, x_label, y_label, *args):
     plt.show()  # it is a blocking function
 
 
-# TODO 使用ModelCheckpoint
+# 使用ModelCheckpoint => done
 class SaveModel(Callback):
     def __init__(self):
         super(SaveModel, self).__init__()
@@ -120,8 +120,8 @@ def show_save_record(history, train_begin_time):
     record_info.append('\n======================= acc & loss & val_acc & val_loss ============================\n')
     for i in range(len(acc)):
         record_info.append(
-            'epoch {0:<4} | acc: {1:6.3f}% | loss: {2:<10.5f} |'
-            ' val_acc: {3:6.3f}% | val_loss: {4:<10.5f}\n'.format(i + 1,
+            'epoch {0:<3} | acc: {1:5.2f}% | loss: {2:<6.4f} |'
+            ' val_acc: {3:5.2f}% | val_loss: {4:<6.4f}\n'.format(i + 1,
                                                                 acc[i] * 100, loss[i],
                                                                 val_acc[i] * 100, val_loss[i]))
 
@@ -154,9 +154,45 @@ def print_save_str(to_print_save, save_url):
     with open(save_url, 'a', encoding=params.SAVE_FILE_ENCODING) as file:
         file.write(to_print_save)
 
+
+def data_statistic(fname):
+    # 统计正负样本分布
+    total_count = 0
+    positive_count = 0
+    negative_count = 0
+    with open(fname, 'r', encoding=params.OPEN_FILE_ENCODING) as file:
+        for line in file:
+            if line and line != '\n':
+                field_list = line.split('\t')
+                if len(field_list) != 3:
+                    continue
+                label = int(field_list[2])
+                if label == 1:
+                    positive_count += 1
+                    total_count += 1
+                elif label == 0:
+                    negative_count += 1
+                    total_count += 1
+
+    tmp = fname.split(os.path.sep)
+    fname = tmp[len(tmp)-1]
+    print('==========', fname, '==========')
+    print('total count:', total_count)
+    print('positive count:', positive_count)
+    print('negative count:', negative_count)
+
+
 if __name__ == '__main__':
     # ========== test _remove_symbols() func ==========
     # str1 = "'Random Number' is what I don't like at all."
     # str1 = "I don't like 'Random Number'."
-    str1 = "I don't like 'Random Number' at all"
-    print(remove_symbols(str1, params.MATCH_SINGLE_QUOTE_STR))
+    # str1 = "I don't like 'Random Number' at all"
+    # print(remove_symbols(str1, params.MATCH_SINGLE_QUOTE_STR))
+    fname = params.PROCESSED_EN_TRAIN_URL
+    data_statistic(fname)
+    fname = params.EN_TRAIN_URL
+    data_statistic(fname)
+    fname = params.EN_VAL_URL
+    data_statistic(fname)
+    fname = params.EN_TEST_URL
+    data_statistic(fname)
