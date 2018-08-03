@@ -3,12 +3,11 @@ from keras.optimizers import Adam, RMSprop
 from tools import LRSchedulerDoNothing
 from transformer import LRSchedulerPerStep
 
-# TODO 网格搜索
 GRID_SEARCH = True
 
 # AvgSeqDenseModel | StackedBiLSTMDenseModel |
 # TransformerEncoderBiLSTMDenseModel | RNMTPlusEncoderBiLSTMDenseModel |
-RUN_WHICH_MODEL = 'RNMTPlusEncoderBiLSTMDenseModel'
+RUN_WHICH_MODEL = 'StackedBiLSTMDenseModel'
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -34,7 +33,7 @@ def get_hyperparams(model_name):
         return BasicParams()
 
 
-# TODO auto save hyperparams to file
+# auto save hyperparams to file => done
 class BasicParams:
     pad = 'pre'
     cut = 'pre'

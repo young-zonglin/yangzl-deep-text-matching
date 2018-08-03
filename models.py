@@ -208,6 +208,7 @@ class BasicModel:
                                            callbacks=[model_saver, lr_scheduler, early_stopping])
         tools.show_save_record(history, train_start)
 
+    # TODO 评价指标
     def evaluate_generator(self):
         scores = self.model.evaluate_generator(generator=reader.generate_batch_data_file(self.test_fname,
                                                                                          self.tokenizer,
@@ -268,6 +269,14 @@ class StackedBiLSTMDenseModel(BasicModel):
         super(StackedBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
+        record_info = list()
+        record_info.append("\n================== Hyper params ==================\n")
+        record_info.append("lstm dropout rate: "+str(self.hyperparams.lstm_p_dropout)+'\n')
+        record_info.append("dense dropout rate: " + str(self.hyperparams.dense_p_dropout) + '\n')
+        record_str = ''.join(record_info)
+        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        tools.print_save_str(record_str, record_url)
+
         lstm_p_dropout = self.hyperparams.lstm_p_dropout
         input_dropout = Dropout(lstm_p_dropout, name='input_dropout')
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
@@ -317,6 +326,14 @@ class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
         super(RNMTPlusEncoderBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
+        record_info = list()
+        record_info.append("\n================== Hyper params ==================\n")
+        record_info.append("lstm dropout rate: " + str(self.hyperparams.lstm_p_dropout) + '\n')
+        record_info.append("dense dropout rate: " + str(self.hyperparams.dense_p_dropout) + '\n')
+        record_str = ''.join(record_info)
+        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        tools.print_save_str(record_str, record_url)
+
         input_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='input_dropout')
         src1_word_vec_seq = input_dropout(src1_word_vec_seq)
         src2_word_vec_seq = input_dropout(src2_word_vec_seq)

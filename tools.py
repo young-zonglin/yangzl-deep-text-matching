@@ -107,7 +107,7 @@ def plot_figure(figure_name, model_name, x_label, y_label, *args):
         os.makedirs(params.MODEL_SAVE_DIR)
     save_url = os.path.join(params.MODEL_SAVE_DIR, figure_name + '.png')
     fig.savefig(save_url)
-    plt.show()  # it is a blocking function
+    # plt.show()  # it is a blocking function
 
 
 # 使用ModelCheckpoint => done
