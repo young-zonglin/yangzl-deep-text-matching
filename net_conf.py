@@ -7,8 +7,8 @@ from transformer import LRSchedulerPerStep
 GRID_SEARCH = True
 
 # AvgSeqDenseModel | StackedBiLSTMDenseModel |
-# TransformerEncoderDenseModel | RNMTPlusEncoderDenseModel
-RUN_WHICH_MODEL = 'RNMTPlusEncoderDenseModel'
+# TransformerEncoderBiLSTMDenseModel | RNMTPlusEncoderBiLSTMDenseModel |
+RUN_WHICH_MODEL = 'RNMTPlusEncoderBiLSTMDenseModel'
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -26,10 +26,10 @@ def get_hyperparams(model_name):
         return AvgSeqDenseParams()
     elif model_name == 'StackedBiLSTMDenseModel':
         return StackedBiLSTMDenseParams()
-    elif model_name == 'TransformerEncoderDenseModel':
-        return TransformerEncoderDenseParams()
-    elif model_name == 'RNMTPlusEncoderDenseModel':
-        return RNMTPlusEncoderDenseParams()
+    elif model_name == 'TransformerEncoderBiLSTMDenseModel':
+        return TransformerEncoderBiLSTMDenseParams()
+    elif model_name == 'RNMTPlusEncoderBiLSTMDenseModel':
+        return RNMTPlusEncoderBiLSTMDenseParams()
     else:
         return BasicParams()
 
@@ -80,13 +80,14 @@ class StackedBiLSTMDenseParams:
     batch_size = 128  # 32 64 128 256
 
 
-class RNMTPlusEncoderDenseParams:
+# The scale of the model and state vec dim should be proportional to the scale of the data
+class RNMTPlusEncoderBiLSTMDenseParams:
     retseq_layer_num = 2
     state_dim = 100
     lstm_p_dropout = 0.5
 
-    dense_layer_num = 3
-    initial_unit_num = 256
+    dense_layer_num = 2
+    initial_unit_num = 128
     dense_p_dropout = 0.5
 
     optimizer = RMSprop()
@@ -98,30 +99,30 @@ class RNMTPlusEncoderDenseParams:
     early_stop_patience = 30
     early_stop_min_delta = 1e-4
     train_epoch_times = 1000
-    batch_size = 128  # 32 64 128 256
+    batch_size = 128  # recommended by "Exploring the Limits of Language Modeling"
 
 
-class TransformerEncoderDenseParams:
+class TransformerEncoderBiLSTMDenseParams:
     transformer_mode = 0
-    word_vec_dim = 300
+    word_vec_dim = 300  # fastText pretrained word vec
     layers_num = 3
     d_model = word_vec_dim
-    d_inner_hid = 512  # d_ff
+    d_inner_hid = 512  # d_ff, follow "attention-is-all-you-need-keras"
     n_head = 5  # h head
     d_k = d_v = int(d_model/n_head)
     d_pos_enc = d_model
-    p_dropout = 0.1
+    p_dropout = 0.1  # follow origin paper
 
-    bilstm_retseq_layer_num = 0
     state_dim = 100
     lstm_p_dropout = 0.5
 
-    dense_layer_num = 3
-    initial_unit_num = 256
+    # Follow the practice of CNNs
+    dense_layer_num = 2
+    initial_unit_num = 128
     dense_p_dropout = 0.5
 
-    warmup_step = 2000
-    optimizer = Adam(0.001, 0.9, 0.98, epsilon=1e-9)
+    optimizer = Adam(0.001, 0.9, 0.98, epsilon=1e-9)  # follow origin paper
+    warmup_step = 6000  # in origin paper, this value is set to 4000
     lr_scheduler = LRSchedulerPerStep(d_model, warmup_step)
 
     pad = 'post'
@@ -130,4 +131,4 @@ class TransformerEncoderDenseParams:
     early_stop_patience = 30
     early_stop_min_delta = 1e-4
     train_epoch_times = 1000
-    batch_size = 64  # 32 64 128 256
+    batch_size = 64  # follow "attention-is-all-you-need-keras"

@@ -157,6 +157,7 @@ def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
     """
     randomly split raw data to train data, val data and test data
     train : val : test = 8:1:1
+    test data used for unbiased estimation of model performance
     :param raw_fname:
     :param train_fname:
     :param val_fname:

@@ -53,10 +53,10 @@ class BasicModel:
             return AvgSeqDenseModel()
         elif model_name == 'StackedBiLSTMDenseModel':
             return StackedBiLSTMDenseModel()
-        elif model_name == 'TransformerEncoderDenseModel':
-            return TransformerEncoderDenseModel()
-        elif model_name == 'RNMTPlusEncoderDenseModel':
-            return RNMTPlusEncoderDenseModel()
+        elif model_name == 'TransformerEncoderBiLSTMDenseModel':
+            return TransformerEncoderBiLSTMDenseModel()
+        elif model_name == 'RNMTPlusEncoderBiLSTMDenseModel':
+            return RNMTPlusEncoderBiLSTMDenseModel()
         else:
             return BasicModel()
 
@@ -312,9 +312,9 @@ class StackedBiLSTMDenseModel(BasicModel):
         return preds
 
 
-class RNMTPlusEncoderDenseModel(BasicModel):
+class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
     def __init__(self):
-        super(RNMTPlusEncoderDenseModel, self).__init__()
+        super(RNMTPlusEncoderBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
         input_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='input_dropout')
@@ -324,8 +324,15 @@ class RNMTPlusEncoderDenseModel(BasicModel):
         RNMT_plus_encoder = RNMT_plus.Encoder(self.hyperparams.retseq_layer_num,
                                               self.hyperparams.state_dim,
                                               self.hyperparams.lstm_p_dropout)
-        src1_encoding = RNMT_plus_encoder(src1_word_vec_seq)
-        src2_encoding = RNMT_plus_encoder(src2_word_vec_seq)
+        src1_context_repr_seq = RNMT_plus_encoder(src1_word_vec_seq)
+        src2_context_repr_seq = RNMT_plus_encoder(src2_word_vec_seq)
+
+        enc_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim), name='enc_bilstm')
+        enc_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='enc_dropout')
+        src1_encoding = enc_bilstm(src1_context_repr_seq)
+        src2_encoding = enc_bilstm(src2_context_repr_seq)
+        src1_encoding = enc_dropout(src1_encoding)
+        src2_encoding = enc_dropout(src2_encoding)
 
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
         middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
@@ -336,9 +343,9 @@ class RNMTPlusEncoderDenseModel(BasicModel):
         return preds
 
 
-class TransformerEncoderDenseModel(BasicModel):
+class TransformerEncoderBiLSTMDenseModel(BasicModel):
     def __init__(self):
-        super(TransformerEncoderDenseModel, self).__init__()
+        super(TransformerEncoderBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
         d_model = self.hyperparams.d_model
@@ -364,6 +371,15 @@ class TransformerEncoderDenseModel(BasicModel):
         get_pos_seq = Lambda(transformer.get_pos_seq, name='get_pos_seq')
         src1_pos = get_pos_seq(src1_seq)
         src2_pos = get_pos_seq(src2_seq)
+
+        # TODO Transformer-encoder-based model does not converge
+        # 训练集较小，且模型参数较多，学习能力较强，应该不是欠拟合
+        # 输入数据有问题？ => 不是的，可以训练LSTM-based model
+        # 模型设计有问题？ => 感觉求平均有点问题，试试用LTSM编码 => 失败了
+        # 喂给Encoder的数据有问题？ => 打印看看
+        # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
+        # 陷入局部最优？ =>
+        # 学习率调度策略是否合理？ => warm up step, lr up, then, down
         src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
         src2_seq_repr_seq = transformer_encoder(src2_word_vec_seq, src2_seq, src_pos=src2_pos)
 
@@ -377,22 +393,6 @@ class TransformerEncoderDenseModel(BasicModel):
         masked_avg_seq = Lambda(lambda x: masked_avg_emb(x[0], x[1]), name='masked_seq_avg')
         # src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
         # src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
-
-        # TODO Transformer Encoder based model训练不收敛
-        # 训练集较小，且模型参数较多，学习能力较强，应该不是欠拟合
-        # 输入数据有问题？ => 不是的，可以训练LSTM-based model
-        # 模型设计有问题？ => 感觉求平均有点问题，试试用LTSM编码 => 失败了
-        # 喂给Encoder的数据有问题？ => 打印看看
-        # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
-        # 陷入局部最优？ =>
-        # 学习率调度策略是否合理？ => warm up step, lr up, then, down
-        for _ in range(self.hyperparams.bilstm_retseq_layer_num):
-            this_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim, return_sequences=True), merge_mode='concat')
-            this_dropout = Dropout(self.hyperparams.lstm_p_dropout)
-            src1_seq_repr_seq = this_bilstm(src1_seq_repr_seq)
-            src2_seq_repr_seq = this_bilstm(src2_seq_repr_seq)
-            src1_seq_repr_seq = this_dropout(src1_seq_repr_seq)
-            src2_seq_repr_seq = this_dropout(src2_seq_repr_seq)
 
         enc_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim), name='enc_bilstm')
         enc_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='enc_dropout')

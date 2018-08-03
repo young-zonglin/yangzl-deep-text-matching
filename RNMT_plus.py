@@ -20,13 +20,9 @@ class EncoderLayer:
 class Encoder:
     def __init__(self, retseq_layer_num, state_dim, p_dropout):
         self.enc_layers = [EncoderLayer(state_dim, p_dropout) for _ in range(retseq_layer_num)]
-        self.enc_bilstm = Bidirectional(LSTM(state_dim), name='enc_bilstm')
-        self.enc_dropout = Dropout(p_dropout, name='enc_dropout')
 
     def __call__(self, word_vec_seq):
         x = word_vec_seq
         for enc_layer in self.enc_layers:
             x = enc_layer(x)
-        x = self.enc_bilstm(x)
-        x = self.enc_dropout(x)
         return x
