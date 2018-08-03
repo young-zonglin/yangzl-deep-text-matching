@@ -9,13 +9,14 @@ from keras.models import Model
 from keras.models import load_model
 from keras.utils import plot_model
 
+import RNMT_plus
 import net_conf
 import params
 import reader
 import tools
 import transformer
-from layers import AvgEmb, UnitReduceDense
-import RNMT_plus
+from layers import AvgEmb
+from tools import UnitReduceDense
 
 
 # batch size和seq len随意，word vec dim训练和应用时应一致
@@ -299,11 +300,10 @@ class StackedBiLSTMDenseModel(BasicModel):
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
         middle_vec = merged_vec
 
-        # 这里需要做一个融合
-        # 必须使用FCN
-        # 如果是两层Dense层 => 借鉴CNN
-        # 如果是一层FFN层 => 借鉴Transformer
-        # 如果类别数很少，可以多加一些全连接层 => 1024 -> 512 -> 128 -> 2
+        # a fusion op needed here
+        # must use FC layer
+        # two Dense layer => like CNN
+        # a feedforward layer => like Transformer
         for _ in range(self.hyperparams.dense_layer_num):
             middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
             middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
@@ -338,7 +338,7 @@ class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
         middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
                                      self.hyperparams.initial_unit_num,
                                      self.hyperparams.dense_p_dropout,
-                                     name='unit_reduce_dense')(merged_vec)
+                                     reduce=False)(merged_vec)
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 
@@ -406,8 +406,7 @@ class TransformerEncoderBiLSTMDenseModel(BasicModel):
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding])
         middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
                                      self.hyperparams.initial_unit_num,
-                                     self.hyperparams.dense_p_dropout,
-                                     name='unit_reduce_dense')(merged_vec)
+                                     self.hyperparams.dense_p_dropout)(merged_vec)
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 

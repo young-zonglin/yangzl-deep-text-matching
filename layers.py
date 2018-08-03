@@ -2,38 +2,8 @@ import tensorflow as tf
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras.initializers import Ones, Zeros
-from keras.layers import Dense, Dropout
 
 import transformer
-
-
-class UnitReduceDense(Layer):
-    def __init__(self, layer_num, initial_unit_num, p_dropout, **kwargs):
-        Layer.__init__(self, **kwargs)
-        self.layer_num = layer_num
-        self.initial_unit_num = initial_unit_num
-        self.p_dropout = p_dropout
-        self.layers = []
-        for i in range(layer_num):
-            self.current_unit_num = max(int(initial_unit_num/(2**i)), 32)
-            self.layers.append(Dense(self.current_unit_num, activation='relu'))
-            self.layers.append(Dropout(p_dropout))
-
-    def call(self, inputs, **kwargs):
-        x = inputs
-        for layer in self.layers:
-            x = layer(x)
-        return x
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[0], self.current_unit_num
-
-    def get_config(self):
-        config = {'layer_num': self.layer_num,
-                  'initial_unit_num': self.initial_unit_num,
-                  'p_dropout': self.p_dropout}
-        base_config = Layer.get_config(self)
-        return dict(list(base_config.items()) + list(config.items()))
 
 
 class LayerNormalization(Layer):

@@ -34,6 +34,7 @@ def get_hyperparams(model_name):
         return BasicParams()
 
 
+# TODO auto save hyperparams to file
 class BasicParams:
     pad = 'pre'
     cut = 'pre'

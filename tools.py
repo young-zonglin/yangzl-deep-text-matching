@@ -4,9 +4,35 @@ import time
 
 import matplotlib.pyplot as plt
 from keras.callbacks import Callback
+from keras.layers import Dense, Dropout
 
 import params
 import net_conf
+
+
+class UnitReduceDense:
+    """
+    In Keras: input tensor => a series of layers => output tensor.
+    The `call` method of the Keras layer cannot call the layer of Keras.
+    What called in the `call` method of the Keras layer is the backend function.
+    Define a class(not inherit from `Layer` class), then calls Keras layers in its __call__ method.
+    """
+    def __init__(self, layer_num, initial_unit_num, p_dropout, reduce=True):
+        self.layers = []
+        for i in range(layer_num):
+            if reduce:
+                # If reduce is set to `True`, the information will be lost
+                # as the dimension of the feature vector decreases.
+                self.current_unit_num = max(int(initial_unit_num/(2**i)), 32)
+            else:
+                self.current_unit_num = max(initial_unit_num, 32)
+            self.layers.append(Dense(self.current_unit_num, activation='relu'))
+            self.layers.append(Dropout(p_dropout))
+
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
 
 
 def remove_symbols(seq, pattern_str):
