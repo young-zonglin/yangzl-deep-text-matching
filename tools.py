@@ -17,7 +17,7 @@ class UnitReduceDense:
     What called in the `call` method of the Keras layer is the backend function.
     Define a class(not inherit from `Layer` class), then calls Keras layers in its __call__ method.
     """
-    def __init__(self, layer_num, initial_unit_num, p_dropout, reduce=True):
+    def __init__(self, layer_num, initial_unit_num, p_dropout, reduce=False):
         self.layers = []
         for i in range(layer_num):
             if reduce:
@@ -123,11 +123,6 @@ class SaveModel(Callback):
         self.model.save(save_url)
         print("================== 保存模型 ==================")
         print(net_conf.RUN_WHICH_MODEL, 'has been saved in', save_url, '\n')
-
-
-class LRSchedulerDoNothing(Callback):
-    def __init__(self):
-        super(LRSchedulerDoNothing, self).__init__()
 
 
 def show_save_record(history, train_begin_time):

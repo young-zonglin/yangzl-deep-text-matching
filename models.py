@@ -158,6 +158,7 @@ class BasicModel:
         record_info = list()
         record_info.append('\n================ In build ================\n')
         record_info.append('Found %d word vectors.\n' % len(word2vec))
+        record_info.append(str(self.hyperparams))
         record_str = ''.join(record_info)
         record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
         tools.print_save_str(record_str, record_url)
@@ -269,14 +270,6 @@ class StackedBiLSTMDenseModel(BasicModel):
         super(StackedBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        record_info = list()
-        record_info.append("\n================== Hyper params ==================\n")
-        record_info.append("lstm dropout rate: "+str(self.hyperparams.lstm_p_dropout)+'\n')
-        record_info.append("dense dropout rate: " + str(self.hyperparams.dense_p_dropout) + '\n')
-        record_str = ''.join(record_info)
-        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
-        tools.print_save_str(record_str, record_url)
-
         lstm_p_dropout = self.hyperparams.lstm_p_dropout
         input_dropout = Dropout(lstm_p_dropout, name='input_dropout')
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
@@ -326,14 +319,6 @@ class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
         super(RNMTPlusEncoderBiLSTMDenseModel, self).__init__()
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        record_info = list()
-        record_info.append("\n================== Hyper params ==================\n")
-        record_info.append("lstm dropout rate: " + str(self.hyperparams.lstm_p_dropout) + '\n')
-        record_info.append("dense dropout rate: " + str(self.hyperparams.dense_p_dropout) + '\n')
-        record_str = ''.join(record_info)
-        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
-        tools.print_save_str(record_str, record_url)
-
         input_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='input_dropout')
         src1_word_vec_seq = input_dropout(src1_word_vec_seq)
         src2_word_vec_seq = input_dropout(src2_word_vec_seq)
@@ -355,7 +340,7 @@ class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
         middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
                                      self.hyperparams.initial_unit_num,
                                      self.hyperparams.dense_p_dropout,
-                                     reduce=False)(merged_vec)
+                                     reduce=self.hyperparams.unit_reduce)(merged_vec)
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 
@@ -423,7 +408,8 @@ class TransformerEncoderBiLSTMDenseModel(BasicModel):
         merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding])
         middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
                                      self.hyperparams.initial_unit_num,
-                                     self.hyperparams.dense_p_dropout)(merged_vec)
+                                     self.hyperparams.dense_p_dropout,
+                                     self.hyperparams.unit_reduce)(merged_vec)
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
         return preds
 
