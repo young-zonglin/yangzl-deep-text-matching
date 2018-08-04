@@ -42,7 +42,7 @@ class LRSchedulerDoNothing(Callback):
         super(LRSchedulerDoNothing, self).__init__()
 
 
-# return hyperparams string => done
+# return hyper params string => done
 class BasicHParams:
     def __init__(self):
         self.pad = 'pre'
@@ -71,7 +71,7 @@ class AvgSeqDenseHParams:
         self.cut = 'pre'
 
         self.p_dropout = 0.5
-        self.early_stop_patience = 30
+        self.early_stop_patience = 10
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 32
@@ -114,13 +114,12 @@ class StackedBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 30
+        self.early_stop_patience = 10
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         # TODO 超参batch_size的设置
         # TODO 动态batch_size
         self.batch_size = 128  # 32 64 128 256
-
 
     def __str__(self):
         ret_str = list()
@@ -148,7 +147,7 @@ class StackedBiLSTMDenseHParams:
         return ret_str
 
 
-# The scale of the model and state vec dim should be proportional to the scale of the data
+# The scale of the model and state vec dim should be proportional to the scale of the data.
 class RNMTPlusEncoderBiLSTMDenseHParams:
     def __init__(self):
         self.retseq_layer_num = 2
@@ -166,10 +165,10 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 30
+        self.early_stop_patience = 10  # This is a good value according to the val loss curve.
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
-        self.batch_size = 128  # recommended by "Exploring the Limits of Language Modeling"
+        self.batch_size = 128  # Recommended by "Exploring the Limits of Language Modeling".
 
     def __str__(self):
         ret_str = list()
@@ -229,7 +228,7 @@ class TransformerEncoderBiLSTMDenseHParams:
         self.pad = 'post'
         self.cut = 'post'
 
-        self.early_stop_patience = 30
+        self.early_stop_patience = 10
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 64  # follow "attention-is-all-you-need-keras"
