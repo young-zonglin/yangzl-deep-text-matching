@@ -52,11 +52,11 @@ class BasicModel:
     def make_model(model_name):
         if model_name == "AvgSeqDenseModel":
             return AvgSeqDenseModel()
-        elif model_name == 'StackedBiLSTMDenseModel':
+        elif model_name == 'SBLDModel':
             return StackedBiLSTMDenseModel()
-        elif model_name == 'TransformerEncoderBiLSTMDenseModel':
+        elif model_name == 'TEBLDModel':
             return TransformerEncoderBiLSTMDenseModel()
-        elif model_name == 'RNMTPlusEncoderBiLSTMDenseModel':
+        elif model_name == 'REBLDModel':
             return RNMTPlusEncoderBiLSTMDenseModel()
         else:
             return BasicModel()

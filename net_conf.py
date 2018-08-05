@@ -5,9 +5,11 @@ from transformer import LRSchedulerPerStep
 
 GRID_SEARCH = True
 
-# AvgSeqDenseModel | StackedBiLSTMDenseModel |
-# TransformerEncoderBiLSTMDenseModel | RNMTPlusEncoderBiLSTMDenseModel |
-RUN_WHICH_MODEL = 'StackedBiLSTMDenseModel'
+# AvgSeqDenseModel
+# StackedBiLSTMDenseModel => SBLDModel
+# TransformerEncoderBiLSTMDenseModel => TEBLDModel
+# RNMTPlusEncoderBiLSTMDenseModel => REBLDModel
+RUN_WHICH_MODEL = 'SBLDModel'
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -23,11 +25,11 @@ def get_hyperparams(model_name):
 
     if model_name == "AvgSeqDenseModel":
         return AvgSeqDenseHParams()
-    elif model_name == 'StackedBiLSTMDenseModel':
+    elif model_name == 'SBLDModel':
         return StackedBiLSTMDenseHParams()
-    elif model_name == 'TransformerEncoderBiLSTMDenseModel':
+    elif model_name == 'TEBLDModel':
         return TransformerEncoderBiLSTMDenseHParams()
-    elif model_name == 'RNMTPlusEncoderBiLSTMDenseModel':
+    elif model_name == 'REBLDModel':
         return RNMTPlusEncoderBiLSTMDenseHParams()
     else:
         return BasicHParams()
