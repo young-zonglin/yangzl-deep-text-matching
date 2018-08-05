@@ -92,6 +92,7 @@ def plot_figure(figure_name, model_name, x_label, y_label, *args):
         return
 
     fig = plt.figure(figure_name)
+    fig.clear()  # Avoid repeating drawings on the same figure
     # left, bottom, right, top
     axes = fig.add_axes([0.1, 0.1, 0.8, 0.8])
     for i in range(length):

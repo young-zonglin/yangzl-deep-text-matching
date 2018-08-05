@@ -9,8 +9,9 @@ def main():
         print('============ In grid search mode ============')
         # tune dropout rate
         # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
-        lstm_p_dropout = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-        dense_p_dropout = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        # Don't set dropout rate too large, because it will cause information loss.
+        lstm_p_dropout = [0.1, 0.2, 0.3, 0.4, 0.5]
+        dense_p_dropout = [0.1, 0.2, 0.3, 0.4, 0.5]
         for lstm_rate in lstm_p_dropout:
             for dense_rate in dense_p_dropout:
                 run_which_model = net_conf.RUN_WHICH_MODEL
