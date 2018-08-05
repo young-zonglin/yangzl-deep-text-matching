@@ -101,7 +101,7 @@ class AvgSeqDenseHParams:
 
 class StackedBiLSTMDenseHParams:
     def __init__(self):
-        self.bilstm_retseq_layer_num = 2
+        self.bilstm_retseq_layer_num = 2  # best value according to experiment
         self.state_dim = 100
         self.lstm_p_dropout = 0.5
 
