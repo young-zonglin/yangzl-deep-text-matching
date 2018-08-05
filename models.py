@@ -16,6 +16,7 @@ import reader
 import tools
 import transformer
 from layers import AvgEmb
+from net_conf import available_models
 from tools import UnitReduceDense
 
 
@@ -50,13 +51,13 @@ class BasicModel:
     # 静态工厂方法
     @staticmethod
     def make_model(model_name):
-        if model_name == "AvgSeqDenseModel":
+        if model_name == available_models[0]:
             return AvgSeqDenseModel()
-        elif model_name == 'SBLDModel':
+        elif model_name == available_models[1]:
             return StackedBiLSTMDenseModel()
-        elif model_name == 'TEBLDModel':
+        elif model_name == available_models[2]:
             return TransformerEncoderBiLSTMDenseModel()
-        elif model_name == 'REBLDModel':
+        elif model_name == available_models[3]:
             return RNMTPlusEncoderBiLSTMDenseModel()
         else:
             return BasicModel()

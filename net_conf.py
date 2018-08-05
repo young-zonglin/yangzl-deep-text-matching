@@ -3,13 +3,13 @@ from keras.optimizers import Adam, RMSprop
 
 from transformer import LRSchedulerPerStep
 
-GRID_SEARCH = True
 
-# AvgSeqDenseModel
-# StackedBiLSTMDenseModel => SBLDModel
-# TransformerEncoderBiLSTMDenseModel => TEBLDModel
-# RNMTPlusEncoderBiLSTMDenseModel => REBLDModel
-RUN_WHICH_MODEL = 'SBLDModel'
+model_name_addr_full = {'ASDModel': 'AvgSeqDenseModel',
+                        'SBLDModel': 'StackedBiLSTMDenseModel',
+                        'TEBLDModel': 'TransformerEncoderBiLSTMDenseModel',
+                        'REBLDModel': "RNMTPlusEncoderBiLSTMDenseModel"}
+available_models = ['ASDModel', 'SBLDModel', 'TEBLDModel', 'REBLDModel']
+RUN_WHICH_MODEL = available_models[1]
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -23,13 +23,13 @@ def get_hyperparams(model_name):
     if not model_name:
         return BasicHParams()
 
-    if model_name == "AvgSeqDenseModel":
+    if model_name == available_models[0]:
         return AvgSeqDenseHParams()
-    elif model_name == 'SBLDModel':
+    elif model_name == available_models[1]:
         return StackedBiLSTMDenseHParams()
-    elif model_name == 'TEBLDModel':
+    elif model_name == available_models[2]:
         return TransformerEncoderBiLSTMDenseHParams()
-    elif model_name == 'REBLDModel':
+    elif model_name == available_models[3]:
         return RNMTPlusEncoderBiLSTMDenseHParams()
     else:
         return BasicHParams()
@@ -108,7 +108,7 @@ class StackedBiLSTMDenseHParams:
         self.unit_reduce = False
         self.dense_layer_num = 2
         self.linear_unit_num = 128
-        self.dense_p_dropout = 0.5
+        self.dense_p_dropout = 0.4
 
         self.optimizer = RMSprop()
         self.lr_scheduler = LRSchedulerDoNothing()
