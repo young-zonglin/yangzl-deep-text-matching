@@ -73,7 +73,7 @@ class AvgSeqDenseHParams:
         self.cut = 'pre'
 
         self.p_dropout = 0.5
-        self.early_stop_patience = 10
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 32
@@ -116,7 +116,7 @@ class StackedBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 10
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         # TODO 超参batch_size的设置
@@ -167,7 +167,9 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 10  # This is a good value according to the val loss curve.
+        # 10 times waiting is not enough.
+        # Maybe 20 is a good value.
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 128  # Recommended by "Exploring the Limits of Language Modeling".
@@ -230,7 +232,7 @@ class TransformerEncoderBiLSTMDenseHParams:
         self.pad = 'post'
         self.cut = 'post'
 
-        self.early_stop_patience = 10
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 64  # follow "attention-is-all-you-need-keras"

@@ -15,8 +15,9 @@ def tune_dropout_rate_SBLDModel(which_language):
     print('============ ' + model_full_name + ' tune dropout rate ============')
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
     # Don't set dropout rate too large, because it will cause information loss.
-    lstm_p_dropout = [0.1, 0.2, 0.3, 0.4, 0.5]
-    dense_p_dropout = [0.1, 0.2, 0.3, 0.4, 0.5]
+    # According to previous experiment: lstm rate >= 0.5, 0 <= dense rate <= 0.2
+    lstm_p_dropout = [0.5, 0.6, 0.7]
+    dense_p_dropout = [0, 0.1, 0.2]
     for lstm_rate in lstm_p_dropout:
         for dense_rate in dense_p_dropout:
             text_match_model = BasicModel.make_model(run_which_model)
@@ -41,5 +42,5 @@ def tune_layer_num_SBLDModel(which_language):
 
 if __name__ == '__main__':
     which_language = net_conf.WHICH_LANGUAGE
-    # tune_dropout_rate_SBLDModel(which_language)
-    tune_layer_num_SBLDModel(which_language)
+    tune_dropout_rate_SBLDModel(which_language)
+    # tune_layer_num_SBLDModel(which_language)
