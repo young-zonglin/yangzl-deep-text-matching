@@ -1,15 +1,15 @@
 from keras.callbacks import Callback
 from keras.optimizers import Adam, RMSprop
 
-from transformer import LRSchedulerPerStep
+import transformer
 
-GRID_SEARCH = True
 
-# AvgSeqDenseModel
-# StackedBiLSTMDenseModel => SBLDModel
-# TransformerEncoderBiLSTMDenseModel => TEBLDModel
-# RNMTPlusEncoderBiLSTMDenseModel => REBLDModel
-RUN_WHICH_MODEL = 'SBLDModel'
+model_name_addr_full = {'ASDModel': 'AvgSeqDenseModel',
+                        'SBLDModel': 'StackedBiLSTMDenseModel',
+                        'TEBLDModel': 'TransformerEncoderBiLSTMDenseModel',
+                        'REBLDModel': "RNMTPlusEncoderBiLSTMDenseModel"}
+available_models = ['ASDModel', 'SBLDModel', 'TEBLDModel', 'REBLDModel']
+RUN_WHICH_MODEL = available_models[1]
 
 # en es
 WHICH_LANGUAGE = 'en'
@@ -23,13 +23,13 @@ def get_hyperparams(model_name):
     if not model_name:
         return BasicHParams()
 
-    if model_name == "AvgSeqDenseModel":
+    if model_name == available_models[0]:
         return AvgSeqDenseHParams()
-    elif model_name == 'SBLDModel':
+    elif model_name == available_models[1]:
         return StackedBiLSTMDenseHParams()
-    elif model_name == 'TEBLDModel':
+    elif model_name == available_models[2]:
         return TransformerEncoderBiLSTMDenseHParams()
-    elif model_name == 'REBLDModel':
+    elif model_name == available_models[3]:
         return RNMTPlusEncoderBiLSTMDenseHParams()
     else:
         return BasicHParams()
@@ -73,7 +73,7 @@ class AvgSeqDenseHParams:
         self.cut = 'pre'
 
         self.p_dropout = 0.5
-        self.early_stop_patience = 10
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 32
@@ -101,14 +101,19 @@ class AvgSeqDenseHParams:
 
 class StackedBiLSTMDenseHParams:
     def __init__(self):
-        self.bilstm_retseq_layer_num = 2
+        self.bilstm_retseq_layer_num = 2  # best value according to experiment
         self.state_dim = 100
+        # dropout rate up, overfitting down
+        # 0.4 or 0.5 is a good value
+        # Information will be lost as the rate continue to increase.
         self.lstm_p_dropout = 0.5
+
+        self.l2_lambda = 0.01
 
         self.unit_reduce = False
         self.dense_layer_num = 2
         self.linear_unit_num = 128
-        self.dense_p_dropout = 0.5
+        self.dense_p_dropout = 0.4
 
         self.optimizer = RMSprop()
         self.lr_scheduler = LRSchedulerDoNothing()
@@ -116,11 +121,12 @@ class StackedBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 10
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
-        # TODO 超参batch_size的设置
-        # TODO 动态batch_size
+        # Set the value of hyper params batch_size => done
+        # See my evernote for more info.
+        # There is no need to adjust batch_size dynamically.
         self.batch_size = 128  # 32 64 128 256
 
     def __str__(self):
@@ -129,6 +135,8 @@ class StackedBiLSTMDenseHParams:
         ret_str.append('bi-lstm retseq layer num: ' + str(self.bilstm_retseq_layer_num) + '\n')
         ret_str.append('state dim: ' + str(self.state_dim) + '\n')
         ret_str.append('lstm dropout proba: ' + str(self.lstm_p_dropout) + '\n\n')
+
+        ret_str.append('l2 lambda: ' + str(self.l2_lambda) + '\n\n')
 
         ret_str.append('unit reduce: ' + str(self.unit_reduce) + '\n')
         ret_str.append('dense layer num: ' + str(self.dense_layer_num) + '\n')
@@ -154,20 +162,28 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
     def __init__(self):
         self.retseq_layer_num = 2
         self.state_dim = 100
-        self.lstm_p_dropout = 0.5
+        # Since layer norm also has a regularization effect
+        self.lstm_p_dropout = 0.1
 
         self.unit_reduce = False
         self.dense_layer_num = 2
         self.initial_unit_num = 128
         self.dense_p_dropout = 0.5
 
-        self.optimizer = RMSprop()
+        self.lr = 0.001
+        self.beta_1 = 0.9
+        self.beta_2 = 0.999
+        self.eps = 1e-6
+        self.optimizer = Adam(self.lr, self.beta_1, self.beta_2, epsilon=self.eps)  # follow origin paper
+        # should use RNMT+ lr scheduler here
         self.lr_scheduler = LRSchedulerDoNothing()
 
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 10  # This is a good value according to the val loss curve.
+        # 10 times waiting is not enough.
+        # Maybe 20 is a good value.
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 128  # Recommended by "Exploring the Limits of Language Modeling".
@@ -224,13 +240,13 @@ class TransformerEncoderBiLSTMDenseHParams:
         self.beta_2 = 0.98
         self.eps = 1e-9
         self.optimizer = Adam(self.lr, self.beta_1, self.beta_2, epsilon=self.eps)  # follow origin paper
-        self.warmup_step = 6000  # in origin paper, this value is set to 4000
-        self.lr_scheduler = LRSchedulerPerStep(self.d_model, self.warmup_step)
+        self.warmup_step = 4000  # in origin paper, this value is set to 4000
+        self.lr_scheduler = transformer.LRSchedulerPerStep(self.d_model, self.warmup_step)
 
         self.pad = 'post'
         self.cut = 'post'
 
-        self.early_stop_patience = 10
+        self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         self.batch_size = 64  # follow "attention-is-all-you-need-keras"
