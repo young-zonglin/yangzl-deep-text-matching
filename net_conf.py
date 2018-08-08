@@ -103,6 +103,9 @@ class StackedBiLSTMDenseHParams:
     def __init__(self):
         self.bilstm_retseq_layer_num = 2
         self.state_dim = 100
+        # dropout rate up, overfitting down
+        # 0.4 or 0.5 is a good value
+        # Information will be lost as the rate continue to increase.
         self.lstm_p_dropout = 0.5
 
         self.unit_reduce = False
