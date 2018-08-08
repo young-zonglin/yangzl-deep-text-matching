@@ -101,7 +101,7 @@ class AvgSeqDenseHParams:
 
 class StackedBiLSTMDenseHParams:
     def __init__(self):
-        self.bilstm_retseq_layer_num = 2
+        self.bilstm_retseq_layer_num = 2  # best value according to experiment
         self.state_dim = 100
         # dropout rate up, overfitting down
         # 0.4 or 0.5 is a good value
