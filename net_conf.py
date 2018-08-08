@@ -124,8 +124,9 @@ class StackedBiLSTMDenseHParams:
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
-        # TODO 超参batch_size的设置
-        # TODO 动态batch_size
+        # Set the value of hyper params batch_size => done
+        # See my evernote for more info.
+        # There is no need to adjust batch_size dynamically.
         self.batch_size = 128  # 32 64 128 256
 
     def __str__(self):
