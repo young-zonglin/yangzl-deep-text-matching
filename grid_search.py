@@ -40,7 +40,20 @@ def tune_layer_num_SBLDModel(which_language):
         tools.train_model(text_match_model, hyperparams, which_language)
 
 
+def tune_l2_lambda_SBLDModel(which_language):
+    run_which_model = available_models[1]
+    model_full_name = model_name_addr_full[run_which_model]
+    print('============ ' + model_full_name + ' tune l2 lambda ============')
+    l2_lambda = [1, 0.1, 0.01, 0.001]
+    for num in l2_lambda:
+        text_match_model = BasicModel.make_model(run_which_model)
+        hyperparams = net_conf.get_hyperparams(run_which_model)
+        hyperparams.l2_lambda = num
+        tools.train_model(text_match_model, hyperparams, which_language)
+
+
 if __name__ == '__main__':
     which_language = net_conf.WHICH_LANGUAGE
-    tune_dropout_rate_SBLDModel(which_language)
+    # tune_dropout_rate_SBLDModel(which_language)
     # tune_layer_num_SBLDModel(which_language)
+    tune_l2_lambda_SBLDModel(which_language)

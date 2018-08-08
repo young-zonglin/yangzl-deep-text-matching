@@ -1,7 +1,7 @@
 from keras.callbacks import Callback
 from keras.optimizers import Adam, RMSprop
 
-from transformer import LRSchedulerPerStep
+import transformer
 
 
 model_name_addr_full = {'ASDModel': 'AvgSeqDenseModel',
@@ -108,6 +108,8 @@ class StackedBiLSTMDenseHParams:
         # Information will be lost as the rate continue to increase.
         self.lstm_p_dropout = 0.5
 
+        self.l2_lambda = 0.01
+
         self.unit_reduce = False
         self.dense_layer_num = 2
         self.linear_unit_num = 128
@@ -133,6 +135,8 @@ class StackedBiLSTMDenseHParams:
         ret_str.append('state dim: ' + str(self.state_dim) + '\n')
         ret_str.append('lstm dropout proba: ' + str(self.lstm_p_dropout) + '\n\n')
 
+        ret_str.append('l2 lambda: ' + str(self.l2_lambda) + '\n\n')
+
         ret_str.append('unit reduce: ' + str(self.unit_reduce) + '\n')
         ret_str.append('dense layer num: ' + str(self.dense_layer_num) + '\n')
         ret_str.append('linear unit num: ' + str(self.linear_unit_num) + '\n')
@@ -157,14 +161,20 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
     def __init__(self):
         self.retseq_layer_num = 2
         self.state_dim = 100
-        self.lstm_p_dropout = 0.5
+        # Since layer norm also has a regularization effect
+        self.lstm_p_dropout = 0.1
 
         self.unit_reduce = False
         self.dense_layer_num = 2
         self.initial_unit_num = 128
         self.dense_p_dropout = 0.5
 
-        self.optimizer = RMSprop()
+        self.lr = 0.001
+        self.beta_1 = 0.9
+        self.beta_2 = 0.999
+        self.eps = 1e-6
+        self.optimizer = Adam(self.lr, self.beta_1, self.beta_2, epsilon=self.eps)  # follow origin paper
+        # should use RNMT+ lr scheduler here
         self.lr_scheduler = LRSchedulerDoNothing()
 
         self.pad = 'pre'
@@ -229,8 +239,8 @@ class TransformerEncoderBiLSTMDenseHParams:
         self.beta_2 = 0.98
         self.eps = 1e-9
         self.optimizer = Adam(self.lr, self.beta_1, self.beta_2, epsilon=self.eps)  # follow origin paper
-        self.warmup_step = 6000  # in origin paper, this value is set to 4000
-        self.lr_scheduler = LRSchedulerPerStep(self.d_model, self.warmup_step)
+        self.warmup_step = 4000  # in origin paper, this value is set to 4000
+        self.lr_scheduler = transformer.LRSchedulerPerStep(self.d_model, self.warmup_step)
 
         self.pad = 'post'
         self.cut = 'post'

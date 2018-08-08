@@ -3,6 +3,7 @@ import time
 
 import keras
 from keras import backend as K
+from keras import regularizers
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional, Activation
 from keras.models import Model
@@ -279,21 +280,31 @@ class StackedBiLSTMDenseModel(BasicModel):
         # TODO 解决LSTM-based model过拟合的问题
         # 过拟合的症状 => 训练集损失还在下降，val loss开始震荡
         # 过拟合的解决方案 =>
-        # 正则化技术 => L1、L2正则项; Max-Norm Regularization; Dropout; LN和BN
+        # 正则化技术 => L1/L2 regularization; Max norm constraints; Dropout; LN和BN
         # 更多的数据 => 数据增强 => 生成式模型，GANs？
         # 更小规模的网络 => 使用更窄更深的网络 => RNN和CNN都有参数共享 => 模型复杂度和特征维数应与数据规模成正比
         # 提前结束训练
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
         state_dim = self.hyperparams.state_dim
         for _ in range(bilstm_retseq_layer_num):
-            this_bilstm = Bidirectional(LSTM(state_dim, return_sequences=True), merge_mode='concat')
+            this_lstm = LSTM(state_dim, return_sequences=True,
+                             kernel_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                             recurrent_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                             bias_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                             activity_regularizer=regularizers.l2(self.hyperparams.l2_lambda))
+            this_bilstm = Bidirectional(this_lstm, merge_mode='concat')
             this_dropout = Dropout(lstm_p_dropout)
             src1_hidden_seq = this_bilstm(src1_hidden_seq)
             src2_hidden_seq = this_bilstm(src2_hidden_seq)
             src1_hidden_seq = this_dropout(src1_hidden_seq)
             src2_hidden_seq = this_dropout(src2_hidden_seq)
 
-        enc_bilstm = Bidirectional(LSTM(state_dim), name='enc_bilstm')
+        enc_lstm = LSTM(state_dim,
+                        kernel_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                        recurrent_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                        bias_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                        activity_regularizer=regularizers.l2(self.hyperparams.l2_lambda))
+        enc_bilstm = Bidirectional(enc_lstm, name='enc_bilstm')
         enc_dropout = Dropout(lstm_p_dropout, name='enc_dropout')
         src1_encoding = enc_bilstm(src1_hidden_seq)
         src2_encoding = enc_bilstm(src2_hidden_seq)
@@ -308,7 +319,11 @@ class StackedBiLSTMDenseModel(BasicModel):
         # two Dense layer => like CNN
         # a feedforward layer => like Transformer
         for _ in range(self.hyperparams.dense_layer_num):
-            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)
+            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu',
+                               kernel_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                               bias_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
+                               activity_regularizer=regularizers.l2(self.hyperparams.l2_lambda)
+                               )(middle_vec)
             middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
 
         preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)

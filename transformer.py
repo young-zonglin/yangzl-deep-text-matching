@@ -13,18 +13,18 @@ from layers import Reshape1, Reshape2, Repeat, GetPadMask
 from layers import ScaledDotProduct, MMask, WeightedSum, LayerNormalization
 
 
-# input tensor通过一系列Keras的操作，变成output tensor
+# input tensor => a series of Keras layers => output tensor
 class ScaledDotProductAttention:
-    def __init__(self, d_model, attn_dropout=0.1):
-        # TODO dk?
-        self.temper = np.sqrt(d_model)
+    def __init__(self, d_k, attn_dropout=0.1):
+        # modify d_model to d_k according to origin paper
+        self.temper = np.sqrt(d_k)
         self.dropout = Dropout(attn_dropout)
 
     def __call__(self, q, k, v, mask=None):
         """
         self attention: Q = K = V
         NLP: K = V
-        :param q: 矩阵，shape=(batch_size, seq_len, word_vec_dim)
+        :param q: 矩阵，shape=(batch_size, seq_len, d_k)
         :param k: 同上
         :param v: 同上
         :param mask: shape == (batch_size, seq_len, seq_len), [0, 0, 1, 1, ...], 需要mask的地方就标0
@@ -37,6 +37,8 @@ class ScaledDotProductAttention:
             mmask = MMask()(mask)
             attn = Add()([attn, mmask])
             attn = Activation('softmax')(attn)
+            # why dropout here? => according to RNMT+ origin paper
+            # apply attention dropout to att weight in each att sub-layer
             attn = self.dropout(attn)
             output = WeightedSum()([attn, v])
         return output, attn
@@ -67,7 +69,7 @@ class MultiHeadAttention:
                 self.qs_layers.append(TimeDistributed(Dense(d_k, use_bias=False)))
                 self.ks_layers.append(TimeDistributed(Dense(d_k, use_bias=False)))
                 self.vs_layers.append(TimeDistributed(Dense(d_v, use_bias=False)))
-        self.attention = ScaledDotProductAttention(d_model)
+        self.attention = ScaledDotProductAttention(d_k)
         self.layer_norm = LayerNormalization() if use_norm else None
         self.w_o = TimeDistributed(Dense(d_model))
 
@@ -193,6 +195,7 @@ def get_pos_seq(x):
 class Encoder:
     def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v,
                  layers_num=6, p_dropout=0.1, pos_enc_layer=None, mode=0, batch_size=None):
+        self.p_dropout = p_dropout
         self.pos_enc_layer = pos_enc_layer
         self.enc_layers = [EncoderLayer(d_model, d_inner_hid, n_head, d_k, d_v,
                                         p_dropout, mode, batch_size)
@@ -203,6 +206,8 @@ class Encoder:
         if src_pos is not None:
             pos_enc = self.pos_enc_layer(src_pos)
             x = Add()([x, pos_enc])
+        # apply dropout to the sums of emb and pos enc
+        x = Dropout(self.p_dropout)(x)
         attns = []
         mask = GetPadMask()(src_seq)
         # 只激活哪些层
