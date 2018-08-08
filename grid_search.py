@@ -11,6 +11,7 @@ from net_conf import model_name_addr_full
 
 def tune_dropout_rate_SBLDModel(which_language):
     run_which_model = available_models[1]
+    net_conf.RUN_WHICH_MODEL = run_which_model
     model_full_name = model_name_addr_full[run_which_model]
     print('============ ' + model_full_name + ' tune dropout rate ============')
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
@@ -29,6 +30,7 @@ def tune_dropout_rate_SBLDModel(which_language):
 
 def tune_layer_num_SBLDModel(which_language):
     run_which_model = available_models[1]
+    net_conf.RUN_WHICH_MODEL = run_which_model
     model_full_name = model_name_addr_full[run_which_model]
     print('============ ' + model_full_name + ' tune layer num ============')
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
@@ -42,6 +44,7 @@ def tune_layer_num_SBLDModel(which_language):
 
 def tune_l2_lambda_SBLDModel(which_language):
     run_which_model = available_models[1]
+    net_conf.RUN_WHICH_MODEL = run_which_model
     model_full_name = model_name_addr_full[run_which_model]
     print('============ ' + model_full_name + ' tune l2 lambda ============')
     l2_lambda = [1, 0.1, 0.01, 0.001]
