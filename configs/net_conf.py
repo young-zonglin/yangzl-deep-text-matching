@@ -1,8 +1,7 @@
 from keras.callbacks import Callback
-from keras.optimizers import Adam, RMSprop, Nadam
+from keras.optimizers import Adam, RMSprop
 
-import transformer
-
+from layers import transformer
 
 model_name_addr_full = {'ASDModel': 'AvgSeqDenseModel',
                         'SBLDModel': 'StackedBiLSTMDenseModel',

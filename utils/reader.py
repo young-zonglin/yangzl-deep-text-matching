@@ -8,8 +8,8 @@ import numpy.random as random
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 
-import params
-import tools
+from configs import params
+from utils import tools
 
 
 def _load_vectors(filename, head_n=None):

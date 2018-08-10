@@ -1,6 +1,6 @@
 import os
 
-PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 RESULT_SAVE_DIR = os.path.join(PROJECT_ROOT, 'result')
 
 TRAIN_RECORD_FNAME = 'a.train.info.record'

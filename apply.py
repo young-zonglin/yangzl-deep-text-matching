@@ -1,6 +1,5 @@
-import net_conf
-import params
-from models import BasicModel
+from configs import params, net_conf
+from models.basic_model import BasicModel
 
 
 def main():

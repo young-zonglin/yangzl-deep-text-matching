@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 from keras.layers import Dense, Dropout
 
-import params
+from configs import params
 
 
 def train_model(text_match_model, hyperparams, which_language):

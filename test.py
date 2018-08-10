@@ -1,12 +1,11 @@
-import net_conf
-import params
-from models import BasicModel
-from net_conf import available_models
+from configs import params, net_conf
+from configs.net_conf import available_models
+from models.model_factory import ModelFactory
 
 
 def test():
     run_this_model = available_models[1]
-    text_match_model = BasicModel.make_model(run_this_model)
+    text_match_model = ModelFactory.make_model(run_this_model)
     hyperparams = net_conf.get_hyperparams(run_this_model)
     hyperparams.batch_size = 1
     text_match_model.setup(raw_fname=params.JUST_FOR_TEST,

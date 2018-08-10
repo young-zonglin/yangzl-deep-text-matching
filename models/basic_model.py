@@ -1,25 +1,15 @@
 import os
 import time
 
-import keras
 import tensorflow as tf
-from keras import backend as K
-from keras import regularizers
 from keras.backend.tensorflow_backend import set_session
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional
+from keras.layers import Input, Embedding
 from keras.models import Model
 from keras.models import load_model
 
-import RNMT_plus
-import net_conf
-import params
-import reader
-import tools
-import transformer
-from layers import AvgEmb
-from net_conf import available_models
-from tools import UnitReduceDense
+from configs import params, net_conf
+from utils import tools, reader
 
 # TensorFlow显存管理
 config = tf.ConfigProto()
@@ -55,20 +45,6 @@ class BasicModel:
         self.train_samples_count = 0
         self.val_samples_count = 0
         self.test_samples_count = 0
-
-    # 静态工厂方法
-    @staticmethod
-    def make_model(model_name):
-        if model_name == available_models[0]:
-            return AvgSeqDenseModel()
-        elif model_name == available_models[1]:
-            return StackedBiLSTMDenseModel()
-        elif model_name == available_models[2]:
-            return TransformerEncoderBiLSTMDenseModel()
-        elif model_name == available_models[3]:
-            return RNMTPlusEncoderBiLSTMDenseModel()
-        else:
-            return BasicModel()
 
     def setup(self, raw_fname, train_fname, val_fname, test_fname,
               pretrained_word_vecs_fname, hyperparams):
@@ -251,193 +227,6 @@ class BasicModel:
     def __call__(self, x):
         return self.model(x)
 
-
-class AvgSeqDenseModel(BasicModel):
-    def __init__(self):
-        super(AvgSeqDenseModel, self).__init__()
-
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        avg_seq = AvgEmb(self.word_vec_dim, name='seq_avg')
-        src1_encoding = avg_seq(src1_word_vec_seq)
-        src2_encoding = avg_seq(src2_word_vec_seq)
-        # assert avg_seq.get_output_shape_at(0) == (self.batch_size, self.word_vec_dim)
-        # assert avg_seq.get_output_shape_at(1) == (self.batch_size, self.word_vec_dim)
-
-        merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
-        p_dropout = self.hyperparams.p_dropout
-        middle_vec = Dropout(p_dropout)(merged_vec)
-
-        dense_layer_num = self.hyperparams.dense_layer_num
-        linear_unit_num = self.hyperparams.linear_unit_num
-        for _ in range(dense_layer_num):
-            middle_vec = Dense(linear_unit_num, activation='relu')(middle_vec)
-            middle_vec = Dropout(p_dropout)(middle_vec)
-
-        preds = Dense(1, activation='sigmoid', name='sigmoid_output_layer')(middle_vec)
-        return preds
-
-
-class StackedBiLSTMDenseModel(BasicModel):
-    def __init__(self):
-        super(StackedBiLSTMDenseModel, self).__init__()
-
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        lstm_p_dropout = self.hyperparams.lstm_p_dropout
-        input_dropout = Dropout(lstm_p_dropout, name='input_dropout')
-        src1_hidden_seq = input_dropout(src1_word_vec_seq)
-        src2_hidden_seq = input_dropout(src2_word_vec_seq)
-
-        # TODO 解决LSTM-based model过拟合的问题
-        # 过拟合的症状 => 训练集损失还在下降，val loss开始震荡
-        # 过拟合的解决方案 =>
-        # 正则化技术 => L1/L2 regularization; Max norm constraints; Dropout; LN和BN
-        # 更多的数据 => 数据增强 => 生成式模型，GANs？
-        # 更小规模的网络 => 使用更窄更深的网络 => RNN和CNN都有参数共享 => 模型复杂度和特征维数应与数据规模成正比
-        # 提前结束训练
-        bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
-        state_dim = self.hyperparams.state_dim
-        for _ in range(bilstm_retseq_layer_num):
-            this_lstm = LSTM(state_dim, return_sequences=True,
-                             kernel_regularizer=regularizers.l2(self.hyperparams.kernel_l2_lambda),
-                             recurrent_regularizer=regularizers.l2(self.hyperparams.recurrent_l2_lambda),
-                             bias_regularizer=regularizers.l2(self.hyperparams.bias_l2_lambda),
-                             activity_regularizer=regularizers.l2(self.hyperparams.activity_l2_lambda))
-            this_bilstm = Bidirectional(this_lstm, merge_mode='concat')
-            this_dropout = Dropout(lstm_p_dropout)
-            src1_hidden_seq = this_bilstm(src1_hidden_seq)
-            src2_hidden_seq = this_bilstm(src2_hidden_seq)
-            src1_hidden_seq = this_dropout(src1_hidden_seq)
-            src2_hidden_seq = this_dropout(src2_hidden_seq)
-
-        enc_lstm = LSTM(state_dim,
-                        kernel_regularizer=regularizers.l2(self.hyperparams.kernel_l2_lambda),
-                        recurrent_regularizer=regularizers.l2(self.hyperparams.recurrent_l2_lambda),
-                        bias_regularizer=regularizers.l2(self.hyperparams.bias_l2_lambda),
-                        activity_regularizer=regularizers.l2(self.hyperparams.activity_l2_lambda))
-        enc_bilstm = Bidirectional(enc_lstm, name='enc_bilstm')
-        enc_dropout = Dropout(lstm_p_dropout, name='enc_dropout')
-        src1_encoding = enc_bilstm(src1_hidden_seq)
-        src2_encoding = enc_bilstm(src2_hidden_seq)
-        src1_encoding = enc_dropout(src1_encoding)
-        src2_encoding = enc_dropout(src2_encoding)
-
-        merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
-        middle_vec = merged_vec
-
-        # a fusion op needed here
-        # must use FC layer
-        # two Dense layer => like CNN
-        # a feedforward layer => like Transformer
-        for _ in range(self.hyperparams.dense_layer_num):
-            middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu',
-                               kernel_regularizer=regularizers.l2(self.hyperparams.kernel_l2_lambda),
-                               bias_regularizer=regularizers.l2(self.hyperparams.bias_l2_lambda),
-                               activity_regularizer=regularizers.l2(self.hyperparams.activity_l2_lambda)
-                               )(middle_vec)
-            middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
-
-        preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
-        return preds
-
-
-class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
-    def __init__(self):
-        super(RNMTPlusEncoderBiLSTMDenseModel, self).__init__()
-
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        input_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='input_dropout')
-        src1_word_vec_seq = input_dropout(src1_word_vec_seq)
-        src2_word_vec_seq = input_dropout(src2_word_vec_seq)
-
-        RNMT_plus_encoder = RNMT_plus.Encoder(self.hyperparams.retseq_layer_num,
-                                              self.hyperparams.state_dim,
-                                              self.hyperparams.lstm_p_dropout)
-        src1_context_repr_seq = RNMT_plus_encoder(src1_word_vec_seq)
-        src2_context_repr_seq = RNMT_plus_encoder(src2_word_vec_seq)
-
-        enc_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim), name='enc_bilstm')
-        enc_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='enc_dropout')
-        src1_encoding = enc_bilstm(src1_context_repr_seq)
-        src2_encoding = enc_bilstm(src2_context_repr_seq)
-        src1_encoding = enc_dropout(src1_encoding)
-        src2_encoding = enc_dropout(src2_encoding)
-
-        merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding], axis=-1)
-        middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
-                                     self.hyperparams.initial_unit_num,
-                                     self.hyperparams.dense_p_dropout,
-                                     reduce=self.hyperparams.unit_reduce)(merged_vec)
-        preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
-        return preds
-
-
-class TransformerEncoderBiLSTMDenseModel(BasicModel):
-    def __init__(self):
-        super(TransformerEncoderBiLSTMDenseModel, self).__init__()
-
-    def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
-        d_model = self.hyperparams.d_model
-        d_inner_hid = self.hyperparams.d_inner_hid
-        n_head = self.hyperparams.n_head
-        d_k = d_v = self.hyperparams.d_k
-        d_pos_enc = self.hyperparams.d_pos_enc
-        len_limit = self.max_seq_len
-        layers_num = self.hyperparams.layers_num
-        p_dropout = self.hyperparams.p_dropout
-
-        # 位置编号从1开始
-        # word id亦从1开始
-        pos_enc_layer = Embedding(len_limit+1, d_pos_enc, trainable=False,
-                                  weights=[transformer.get_pos_enc_matrix(len_limit+1, d_pos_enc)],
-                                  name='pos_enc_layer')
-        transformer_encoder = transformer.Encoder(d_model, d_inner_hid, n_head, d_k, d_v,
-                                                  layers_num=layers_num,
-                                                  p_dropout=p_dropout,
-                                                  pos_enc_layer=pos_enc_layer,
-                                                  mode=self.hyperparams.transformer_mode,
-                                                  batch_size=self.batch_size)
-        get_pos_seq = Lambda(transformer.get_pos_seq, name='get_pos_seq')
-        src1_pos = get_pos_seq(src1_seq)
-        src2_pos = get_pos_seq(src2_seq)
-
-        # TODO Transformer-encoder-based model does not converge
-        # 训练集较小，且模型参数较多，学习能力较强，应该不是欠拟合
-        # 输入数据有问题？ => 不是的，可以训练LSTM-based model
-        # 模型设计有问题？ => 感觉求平均有点问题，试试用LTSM编码 => 失败了
-        # 喂给Encoder的数据有问题？ => 打印看看
-        # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
-        # 陷入局部最优？ =>
-        # 学习率调度策略是否合理？ => warm up step, lr up, then, down
-        src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
-        src2_seq_repr_seq = transformer_encoder(src2_word_vec_seq, src2_seq, src_pos=src2_pos)
-
-        # mask操作，只对非占位符的部分求平均
-        def masked_avg_emb(src_seq_repr_seq, src_seq):
-            mask = K.cast(K.expand_dims(K.not_equal(src_seq, 0), -1), 'float32')
-            src_seq_repr_seq = src_seq_repr_seq * mask
-            src_seq_repr_seq = K.mean(src_seq_repr_seq, axis=1, keepdims=True)
-            return K.reshape(src_seq_repr_seq, [-1, d_model])
-
-        masked_avg_seq = Lambda(lambda x: masked_avg_emb(x[0], x[1]), name='masked_seq_avg')
-        # src1_encoding = masked_avg_seq([src1_seq_repr_seq, src1_seq])
-        # src2_encoding = masked_avg_seq([src2_seq_repr_seq, src2_seq])
-
-        enc_bilstm = Bidirectional(LSTM(self.hyperparams.state_dim), name='enc_bilstm')
-        enc_dropout = Dropout(self.hyperparams.lstm_p_dropout, name='enc_dropout')
-        src1_encoding = enc_bilstm(src1_seq_repr_seq)
-        src2_encoding = enc_bilstm(src2_seq_repr_seq)
-        src1_encoding = enc_dropout(src1_encoding)
-        src2_encoding = enc_dropout(src2_encoding)
-
-        # input tensor => 一系列的Keras层 => output tensor
-        # 如果使用了backend函数，例如K.concatenate()或tf.reduce_mean()等，需要使用Lambda层封装它们
-        merged_vec = keras.layers.concatenate([src1_encoding, src2_encoding])
-        middle_vec = UnitReduceDense(self.hyperparams.dense_layer_num,
-                                     self.hyperparams.initial_unit_num,
-                                     self.hyperparams.dense_p_dropout,
-                                     self.hyperparams.unit_reduce)(merged_vec)
-        preds = Dense(1, activation='sigmoid', name='logistic_output_layer')(middle_vec)
-        return preds
 
 # 学习Keras的激活层
 # middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu')(middle_vec)

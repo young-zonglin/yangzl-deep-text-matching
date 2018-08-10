@@ -2,11 +2,11 @@
 Find best hyper params of model by grid search.
 Then, save them to hyper params configuration class.
 """
-import net_conf
-import tools
-from models import BasicModel
-from net_conf import available_models
-from net_conf import model_name_addr_full
+from configs import net_conf
+from configs.net_conf import available_models
+from configs.net_conf import model_name_addr_full
+from models.model_factory import ModelFactory
+from utils import tools
 
 
 def tune_dropout_rate_SBLDModel(which_language):
@@ -21,7 +21,7 @@ def tune_dropout_rate_SBLDModel(which_language):
     dense_p_dropouts = [0, 0.1, 0.2]
     for lstm_rate in lstm_p_dropouts:
         for dense_rate in dense_p_dropouts:
-            text_match_model = BasicModel.make_model(run_which_model)
+            text_match_model = ModelFactory.make_model(run_which_model)
             hyperparams = net_conf.get_hyperparams(run_which_model)
             hyperparams.lstm_p_dropout = lstm_rate
             hyperparams.dense_p_dropout = dense_rate
@@ -36,7 +36,7 @@ def tune_layer_num_SBLDModel(which_language):
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
     layer_nums = [0, 1, 2]
     for num in layer_nums:
-        text_match_model = BasicModel.make_model(run_which_model)
+        text_match_model = ModelFactory.make_model(run_which_model)
         hyperparams = net_conf.get_hyperparams(run_which_model)
         hyperparams.bilstm_retseq_layer_num = num
         tools.train_model(text_match_model, hyperparams, which_language)
@@ -55,7 +55,7 @@ def tune_l2_lambda_SBLDModel(which_language):
         for recurrent_l2_lambda in recurrent_l2_lambdas:
             for bias_l2_lambda in bias_l2_lambdas:
                 for activity_l2_lambda in activity_l2_lambdas:
-                    text_match_model = BasicModel.make_model(run_which_model)
+                    text_match_model = ModelFactory.make_model(run_which_model)
                     hyperparams = net_conf.get_hyperparams(run_which_model)
                     hyperparams.kernel_l2_lambda = kernel_l2_lambda
                     hyperparams.recurrent_l2_lambda = recurrent_l2_lambda
