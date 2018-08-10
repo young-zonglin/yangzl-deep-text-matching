@@ -288,10 +288,10 @@ class StackedBiLSTMDenseModel(BasicModel):
         state_dim = self.hyperparams.state_dim
         for _ in range(bilstm_retseq_layer_num):
             this_lstm = LSTM(state_dim, return_sequences=True,
-                             kernel_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                             recurrent_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                             bias_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                             activity_regularizer=regularizers.l2(self.hyperparams.l2_lambda))
+                             kernel_regularizer=regularizers.l2(self.hyperparams.kernel_l2_lambda),
+                             recurrent_regularizer=regularizers.l2(self.hyperparams.recurrent_l2_lambda),
+                             bias_regularizer=regularizers.l2(self.hyperparams.bias_l2_lambda),
+                             activity_regularizer=regularizers.l2(self.hyperparams.activity_l2_lambda))
             this_bilstm = Bidirectional(this_lstm, merge_mode='concat')
             this_dropout = Dropout(lstm_p_dropout)
             src1_hidden_seq = this_bilstm(src1_hidden_seq)
@@ -300,10 +300,10 @@ class StackedBiLSTMDenseModel(BasicModel):
             src2_hidden_seq = this_dropout(src2_hidden_seq)
 
         enc_lstm = LSTM(state_dim,
-                        kernel_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                        recurrent_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                        bias_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                        activity_regularizer=regularizers.l2(self.hyperparams.l2_lambda))
+                        kernel_regularizer=regularizers.l2(self.hyperparams.kernel_l2_lambda),
+                        recurrent_regularizer=regularizers.l2(self.hyperparams.recurrent_l2_lambda),
+                        bias_regularizer=regularizers.l2(self.hyperparams.bias_l2_lambda),
+                        activity_regularizer=regularizers.l2(self.hyperparams.activity_l2_lambda))
         enc_bilstm = Bidirectional(enc_lstm, name='enc_bilstm')
         enc_dropout = Dropout(lstm_p_dropout, name='enc_dropout')
         src1_encoding = enc_bilstm(src1_hidden_seq)
@@ -320,9 +320,9 @@ class StackedBiLSTMDenseModel(BasicModel):
         # a feedforward layer => like Transformer
         for _ in range(self.hyperparams.dense_layer_num):
             middle_vec = Dense(self.hyperparams.linear_unit_num, activation='relu',
-                               kernel_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                               bias_regularizer=regularizers.l2(self.hyperparams.l2_lambda),
-                               activity_regularizer=regularizers.l2(self.hyperparams.l2_lambda)
+                               kernel_regularizer=regularizers.l2(self.hyperparams.kernel_l2_lambda),
+                               bias_regularizer=regularizers.l2(self.hyperparams.bias_l2_lambda),
+                               activity_regularizer=regularizers.l2(self.hyperparams.activity_l2_lambda)
                                )(middle_vec)
             middle_vec = Dropout(self.hyperparams.dense_p_dropout)(middle_vec)
 

@@ -1,5 +1,5 @@
 from keras.callbacks import Callback
-from keras.optimizers import Adam, RMSprop
+from keras.optimizers import Adam, RMSprop, Nadam
 
 import transformer
 
@@ -108,7 +108,10 @@ class StackedBiLSTMDenseHParams:
         # Information will be lost as the rate continue to increase.
         self.lstm_p_dropout = 0.5
 
-        self.l2_lambda = 0.01
+        self.kernel_l2_lambda = 1e-8
+        self.recurrent_l2_lambda = 1e-8
+        self.bias_l2_lambda = 1e-8
+        self.activity_l2_lambda = 0
 
         self.unit_reduce = False
         self.dense_layer_num = 2
@@ -121,7 +124,7 @@ class StackedBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 20
+        self.early_stop_patience = 30
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
         # Set the value of hyper params batch_size => done
@@ -136,7 +139,10 @@ class StackedBiLSTMDenseHParams:
         ret_str.append('state dim: ' + str(self.state_dim) + '\n')
         ret_str.append('lstm dropout proba: ' + str(self.lstm_p_dropout) + '\n\n')
 
-        ret_str.append('l2 lambda: ' + str(self.l2_lambda) + '\n\n')
+        ret_str.append('kernel l2 lambda: ' + str(self.kernel_l2_lambda) + '\n')
+        ret_str.append('recurrent l2 lambda: ' + str(self.recurrent_l2_lambda) + '\n')
+        ret_str.append('bias l2 lambda: ' + str(self.bias_l2_lambda) + '\n')
+        ret_str.append('activity l2 lambda: ' + str(self.activity_l2_lambda) + '\n\n')
 
         ret_str.append('unit reduce: ' + str(self.unit_reduce) + '\n')
         ret_str.append('dense layer num: ' + str(self.dense_layer_num) + '\n')
@@ -200,6 +206,10 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         ret_str.append('initial unit num: ' + str(self.initial_unit_num) + '\n')
         ret_str.append('dense dropout proba: ' + str(self.dense_p_dropout) + '\n\n')
 
+        ret_str.append('lr: ' + str(self.lr) + '\n')
+        ret_str.append('beta_1: ' + str(self.beta_1) + '\n')
+        ret_str.append('beta_2: ' + str(self.beta_2) + '\n')
+        ret_str.append('epsilon: ' + str(self.eps) + '\n')
         ret_str.append('optimizer: ' + str(self.optimizer) + '\n')
         ret_str.append('lr scheduler: ' + str(self.lr_scheduler) + '\n\n')
 
