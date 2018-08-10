@@ -2,13 +2,14 @@ import os
 import time
 
 import keras
+import tensorflow as tf
 from keras import backend as K
 from keras import regularizers
+from keras.backend.tensorflow_backend import set_session
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional, Activation
+from keras.layers import Input, Dense, Dropout, Embedding, Lambda, LSTM, Bidirectional
 from keras.models import Model
 from keras.models import load_model
-from keras.utils import plot_model
 
 import RNMT_plus
 import net_conf
@@ -19,6 +20,12 @@ import transformer
 from layers import AvgEmb
 from net_conf import available_models
 from tools import UnitReduceDense
+
+# TensorFlow显存管理
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.9
+config.gpu_options.allow_growth = True
+set_session(tf.Session(config=config))
 
 
 # batch size和seq len随意，word vec dim训练和应用时应一致
@@ -80,7 +87,6 @@ class BasicModel:
             run_which_model + '_' + which_language + '_' + setup_time
         if not os.path.exists(self.this_model_save_dir):
             os.makedirs(self.this_model_save_dir)
-        params.MODEL_SAVE_DIR = self.this_model_save_dir
 
         self.hyperparams = hyperparams
         self.batch_size = self.hyperparams.batch_size
@@ -117,7 +123,7 @@ class BasicModel:
         record_info.append('Val samples count: %d\n' % self.val_samples_count)
         record_info.append('Test samples count: %d\n' % self.test_samples_count)
         record_str = ''.join(record_info)
-        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        record_url = self.this_model_save_dir + os.path.sep + params.TRAIN_RECORD_FNAME
         tools.print_save_str(record_str, record_url)
 
     def _do_build(self, src1_word_vec_seq, src2_word_vec_seq, src1_seq, src2_seq):
@@ -162,7 +168,7 @@ class BasicModel:
         record_info.append('Found %d word vectors.\n' % len(word2vec))
         record_info.append(str(self.hyperparams))
         record_str = ''.join(record_info)
-        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        record_url = self.this_model_save_dir + os.path.sep + params.TRAIN_RECORD_FNAME
         tools.print_save_str(record_str, record_url)
         print('\n############### Model summary ##################')
         self.model.summary()
@@ -178,21 +184,25 @@ class BasicModel:
 
         # Transformer-based model的图太复杂太乱，没有看的必要
         # 不要在IDE中打开，否则会直接OOM
-        # model_vis_url = params.MODEL_SAVE_DIR + os.path.sep + params.MODEL_VIS_FNAME
+        # model_vis_url = self.this_model_save_dir + os.path.sep + params.MODEL_VIS_FNAME
         # plot_model(self.model, to_file=model_vis_url, show_shapes=True, show_layer_names=True)
 
     def fit_generator(self):
         train_start = float(time.time())
-        early_stopping = EarlyStopping(monitor='val_loss',
+        early_stopping = EarlyStopping(monitor=self.hyperparams.early_stop_monitor,
                                        patience=self.hyperparams.early_stop_patience,
                                        min_delta=self.hyperparams.early_stop_min_delta,
-                                       verbose=1, mode='min')
+                                       mode=self.hyperparams.early_stop_mode,
+                                       verbose=1)
         # callback_instance.set_model(self.model) => set_model方法由Keras调用
         lr_scheduler = self.hyperparams.lr_scheduler
         save_url = \
-            params.MODEL_SAVE_DIR + os.path.sep + \
-            'epoch_' + '{epoch:03d}-{val_loss:.4f}' + '.h5'
-        model_saver = ModelCheckpoint(save_url, save_best_only=True, save_weights_only=False, verbose=1)
+            self.this_model_save_dir + os.path.sep + \
+            'epoch_{epoch:03d}-{'+self.hyperparams.early_stop_monitor+':.4f}' + '.h5'
+        model_saver = ModelCheckpoint(save_url,
+                                      monitor=self.hyperparams.early_stop_monitor,
+                                      mode=self.hyperparams.early_stop_mode,
+                                      save_best_only=True, save_weights_only=False, verbose=1)
         history = self.model.fit_generator(reader.generate_batch_data_file(self.train_fname,
                                                                            self.tokenizer,
                                                                            self.max_seq_len,
@@ -209,7 +219,7 @@ class BasicModel:
                                            steps_per_epoch=self.train_samples_count / self.batch_size,
                                            epochs=self.hyperparams.train_epoch_times, verbose=2,
                                            callbacks=[model_saver, lr_scheduler, early_stopping])
-        tools.show_save_record(history, train_start)
+        tools.show_save_record(self.this_model_save_dir, history, train_start)
 
     # TODO 评价指标
     def evaluate_generator(self):
@@ -225,7 +235,7 @@ class BasicModel:
         record_info.append("%s: %.4f\n" % (self.model.metrics_names[0], scores[0]))
         record_info.append("%s: %.2f%%\n" % (self.model.metrics_names[1], scores[1] * 100))
         record_str = ''.join(record_info)
-        record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+        record_url = self.this_model_save_dir + os.path.sep + params.TRAIN_RECORD_FNAME
         tools.print_save_str(record_str, record_url)
 
     def save(self, model_url):

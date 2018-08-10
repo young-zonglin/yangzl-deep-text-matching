@@ -73,6 +73,9 @@ class AvgSeqDenseHParams:
         self.cut = 'pre'
 
         self.p_dropout = 0.5
+
+        self.early_stop_monitor = 'val_loss'
+        self.early_stop_mode = 'auto'
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
@@ -90,7 +93,10 @@ class AvgSeqDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
-        ret_str.append('dropout probability: ' + str(self.p_dropout) + '\n')
+        ret_str.append('dropout probability: ' + str(self.p_dropout) + '\n\n')
+
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')
@@ -124,8 +130,10 @@ class StackedBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
+        self.early_stop_monitor = 'val_acc'
+        self.early_stop_mode = 'auto'
         self.early_stop_patience = 30
-        self.early_stop_min_delta = 1e-4
+        self.early_stop_min_delta = 0
         self.train_epoch_times = 1000
         # Set the value of hyper params batch_size => done
         # See my evernote for more info.
@@ -155,6 +163,8 @@ class StackedBiLSTMDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')
@@ -191,6 +201,8 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         # Maybe 20 is a good value.
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
+        self.early_stop_monitor = 'val_loss'
+        self.early_stop_mode = 'auto'
         self.train_epoch_times = 1000
         self.batch_size = 128  # Recommended by "Exploring the Limits of Language Modeling".
 
@@ -216,6 +228,8 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')
@@ -256,6 +270,8 @@ class TransformerEncoderBiLSTMDenseHParams:
         self.pad = 'post'
         self.cut = 'post'
 
+        self.early_stop_monitor = 'val_loss'
+        self.early_stop_mode = 'auto'
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
@@ -294,6 +310,8 @@ class TransformerEncoderBiLSTMDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')

@@ -3,11 +3,9 @@ import re
 import time
 
 import matplotlib.pyplot as plt
-from keras.callbacks import Callback
 from keras.layers import Dense, Dropout
 
 import params
-import net_conf
 
 
 def train_model(text_match_model, hyperparams, which_language):
@@ -94,12 +92,12 @@ def get_current_time():
 
 # 图片显示图例 => done
 # 保存的图片名要包含模型 => done
-def plot_figure(figure_name, model_name, x_label, y_label, *args):
+def plot_figure(model_save_dir, figure_name, x_label, y_label, *args):
     """
     画图，目前最多画四条曲线，传入一个((x, y), label)元组，就画一条曲线，并标注图例
     这是一个阻塞函数
     :param figure_name: 图片的名字
-    :param model_name
+    :param model_save_dir
     :param x_label: x轴轴标
     :param y_label: y轴轴标
     :param args: 变长参数，即参数数目可变
@@ -126,29 +124,14 @@ def plot_figure(figure_name, model_name, x_label, y_label, *args):
     axes.set_title(figure_name)
     axes.legend(loc=0)
 
-    if not os.path.exists(params.MODEL_SAVE_DIR):
-        os.makedirs(params.MODEL_SAVE_DIR)
-    save_url = os.path.join(params.MODEL_SAVE_DIR, figure_name + '.png')
+    if not os.path.exists(model_save_dir):
+        os.makedirs(model_save_dir)
+    save_url = os.path.join(model_save_dir, figure_name + '.png')
     fig.savefig(save_url)
     # plt.show()  # it is a blocking function
 
 
-# 使用ModelCheckpoint => done
-class SaveModel(Callback):
-    def __init__(self):
-        super(SaveModel, self).__init__()
-
-    def on_epoch_end(self, epoch, logs=None):
-        current_time = get_current_time()
-        save_url = \
-            params.MODEL_SAVE_DIR + os.path.sep + \
-            'epoch_' + str(epoch+1) + '_' + current_time + '.h5'
-        self.model.save(save_url)
-        print("================== 保存模型 ==================")
-        print(net_conf.RUN_WHICH_MODEL, 'has been saved in', save_url, '\n')
-
-
-def show_save_record(history, train_begin_time):
+def show_save_record(model_save_dir, history, train_begin_time):
     record_info = list()
 
     record_info.append('\n========================== history ===========================\n')
@@ -166,8 +149,8 @@ def show_save_record(history, train_begin_time):
         record_info.append(
             'epoch {0:<3} | acc: {1:5.2f}% | loss: {2:<6.4f} |'
             ' val_acc: {3:5.2f}% | val_loss: {4:<6.4f}\n'.format(i + 1,
-                                                                acc[i] * 100, loss[i],
-                                                                val_acc[i] * 100, val_loss[i]))
+                                                                 acc[i] * 100, loss[i],
+                                                                 val_acc[i] * 100, val_loss[i]))
 
     train_start = train_begin_time
     train_end = float(time.time())
@@ -175,7 +158,7 @@ def show_save_record(history, train_begin_time):
     record_info.append('\n================ Train end ================\n')
     record_info.append('Train time: {0:.2f}s\n'.format(train_time))
     record_str = ''.join(record_info)
-    record_url = params.MODEL_SAVE_DIR + os.path.sep + params.TRAIN_RECORD_FNAME
+    record_url = model_save_dir + os.path.sep + params.TRAIN_RECORD_FNAME
     print_save_str(record_str, record_url)
 
     # 训练完毕后，将每轮迭代的acc、loss、val_acc、val_loss以画图的形式进行展示 => done
@@ -184,8 +167,8 @@ def show_save_record(history, train_begin_time):
     plt_loss = (plt_x, loss), 'loss'
     plt_val_acc = (plt_x, val_acc), 'val_acc'
     plt_val_loss = (plt_x, val_loss), 'val_loss'
-    plot_figure('acc & loss & val_acc & val_loss',
-                net_conf.RUN_WHICH_MODEL,
+    plot_figure(model_save_dir,
+                'acc & loss & val_acc & val_loss',
                 'epoch', 'index',
                 plt_acc, plt_loss, plt_val_acc, plt_val_loss)
 
