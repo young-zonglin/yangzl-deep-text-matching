@@ -1,8 +1,7 @@
 from keras.callbacks import Callback
 from keras.optimizers import Adam, RMSprop
 
-import transformer
-
+from layers import transformer
 
 model_name_addr_full = {'ASDModel': 'AvgSeqDenseModel',
                         'SBLDModel': 'StackedBiLSTMDenseModel',
@@ -73,6 +72,9 @@ class AvgSeqDenseHParams:
         self.cut = 'pre'
 
         self.p_dropout = 0.5
+
+        self.early_stop_monitor = 'val_loss'
+        self.early_stop_mode = 'auto'
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
@@ -90,7 +92,10 @@ class AvgSeqDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
-        ret_str.append('dropout probability: ' + str(self.p_dropout) + '\n')
+        ret_str.append('dropout probability: ' + str(self.p_dropout) + '\n\n')
+
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')
@@ -108,7 +113,10 @@ class StackedBiLSTMDenseHParams:
         # Information will be lost as the rate continue to increase.
         self.lstm_p_dropout = 0.5
 
-        self.l2_lambda = 0.01
+        self.kernel_l2_lambda = 1e-8
+        self.recurrent_l2_lambda = 1e-8
+        self.bias_l2_lambda = 1e-8
+        self.activity_l2_lambda = 0
 
         self.unit_reduce = False
         self.dense_layer_num = 2
@@ -121,8 +129,10 @@ class StackedBiLSTMDenseHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.early_stop_patience = 20
-        self.early_stop_min_delta = 1e-4
+        self.early_stop_monitor = 'val_acc'
+        self.early_stop_mode = 'auto'
+        self.early_stop_patience = 30
+        self.early_stop_min_delta = 0
         self.train_epoch_times = 1000
         # Set the value of hyper params batch_size => done
         # See my evernote for more info.
@@ -136,7 +146,10 @@ class StackedBiLSTMDenseHParams:
         ret_str.append('state dim: ' + str(self.state_dim) + '\n')
         ret_str.append('lstm dropout proba: ' + str(self.lstm_p_dropout) + '\n\n')
 
-        ret_str.append('l2 lambda: ' + str(self.l2_lambda) + '\n\n')
+        ret_str.append('kernel l2 lambda: ' + str(self.kernel_l2_lambda) + '\n')
+        ret_str.append('recurrent l2 lambda: ' + str(self.recurrent_l2_lambda) + '\n')
+        ret_str.append('bias l2 lambda: ' + str(self.bias_l2_lambda) + '\n')
+        ret_str.append('activity l2 lambda: ' + str(self.activity_l2_lambda) + '\n\n')
 
         ret_str.append('unit reduce: ' + str(self.unit_reduce) + '\n')
         ret_str.append('dense layer num: ' + str(self.dense_layer_num) + '\n')
@@ -149,6 +162,8 @@ class StackedBiLSTMDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')
@@ -185,6 +200,8 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         # Maybe 20 is a good value.
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
+        self.early_stop_monitor = 'val_loss'
+        self.early_stop_mode = 'auto'
         self.train_epoch_times = 1000
         self.batch_size = 128  # Recommended by "Exploring the Limits of Language Modeling".
 
@@ -200,12 +217,18 @@ class RNMTPlusEncoderBiLSTMDenseHParams:
         ret_str.append('initial unit num: ' + str(self.initial_unit_num) + '\n')
         ret_str.append('dense dropout proba: ' + str(self.dense_p_dropout) + '\n\n')
 
+        ret_str.append('lr: ' + str(self.lr) + '\n')
+        ret_str.append('beta_1: ' + str(self.beta_1) + '\n')
+        ret_str.append('beta_2: ' + str(self.beta_2) + '\n')
+        ret_str.append('epsilon: ' + str(self.eps) + '\n')
         ret_str.append('optimizer: ' + str(self.optimizer) + '\n')
         ret_str.append('lr scheduler: ' + str(self.lr_scheduler) + '\n\n')
 
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')
@@ -246,6 +269,8 @@ class TransformerEncoderBiLSTMDenseHParams:
         self.pad = 'post'
         self.cut = 'post'
 
+        self.early_stop_monitor = 'val_loss'
+        self.early_stop_mode = 'auto'
         self.early_stop_patience = 20
         self.early_stop_min_delta = 1e-4
         self.train_epoch_times = 1000
@@ -284,6 +309,8 @@ class TransformerEncoderBiLSTMDenseHParams:
         ret_str.append("pad: " + self.pad + '\n')
         ret_str.append("cut: " + self.cut + '\n\n')
 
+        ret_str.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
+        ret_str.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
         ret_str.append('early stop patience: ' + str(self.early_stop_patience) + '\n')
         ret_str.append('early stop min delta: ' + str(self.early_stop_min_delta) + '\n')
         ret_str.append('train epoch times: ' + str(self.train_epoch_times) + '\n')

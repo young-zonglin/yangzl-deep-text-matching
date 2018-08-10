@@ -3,7 +3,7 @@ from keras import backend as K
 from keras.engine.topology import Layer
 from keras.initializers import Ones, Zeros
 
-import transformer
+from layers import transformer
 
 
 class LayerNormalization(Layer):

@@ -5,12 +5,11 @@ https://github.com/Lsdefine/attention-is-all-you-need-keras
 import numpy as np
 from keras import backend as K
 from keras.callbacks import Callback
-
 from keras.layers import Activation, Dense, Dropout, Conv1D
 from keras.layers import TimeDistributed, Concatenate, Add
 
-from layers import Reshape1, Reshape2, Repeat, GetPadMask
-from layers import ScaledDotProduct, MMask, WeightedSum, LayerNormalization
+from layers.layers import Reshape1, Reshape2, Repeat, GetPadMask
+from layers.layers import ScaledDotProduct, MMask, WeightedSum, LayerNormalization
 
 
 # input tensor => a series of Keras layers => output tensor

@@ -1,12 +1,14 @@
 import os
 
-PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 RESULT_SAVE_DIR = os.path.join(PROJECT_ROOT, 'result')
-MODEL_SAVE_DIR = ''
 
 TRAIN_RECORD_FNAME = 'a.train.info.record'
 # 注意：后缀应为png，jpeg之类
 MODEL_VIS_FNAME = 'a.model.visual.png'
+
+# just for test
+JUST_FOR_TEST = os.path.join(PROJECT_ROOT, 'data', 'just_for_test')
 
 # raw data
 RAW_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'raw_data')
