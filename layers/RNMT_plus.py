@@ -2,7 +2,7 @@ from keras import backend as K
 from keras.callbacks import Callback
 from keras.layers import Bidirectional, LSTM, Dropout, Add
 
-from layers import LayerNormalization
+from layers.layers import LayerNormalization
 
 
 class EncoderLayer:

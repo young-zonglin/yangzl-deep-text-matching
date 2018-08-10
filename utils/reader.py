@@ -8,8 +8,8 @@ import numpy.random as random
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 
-import params
-import tools
+from configs import params
+from utils import tools
 
 
 def _load_vectors(filename, head_n=None):
@@ -164,9 +164,14 @@ def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
     :param test_fname:
     :return: None
     """
+    if raw_fname in [train_fname, val_fname, test_fname]:
+        print('\n======== In split_train_val_test function ========')
+        print('Raw, train, val and test data files have the same name.')
+        print('No split.')
+        return
     if os.path.exists(train_fname) and os.path.exists(val_fname) and os.path.exists(test_fname):
         print('\n======== In split_train_val_test function ========')
-        print('Train, val and test data already exists')
+        print('Train, val and test data already exists.')
         return
     with open(raw_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as raw_file, \
             open(train_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as train_file, \
