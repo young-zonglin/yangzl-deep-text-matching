@@ -9,10 +9,11 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 
 from configs import params
+from configs.params import available_datasets
 from utils import tools
 
 
-def _load_vectors(filename, head_n=None):
+def _load_vectors(filename, head_n=None, open_encoding='utf-8'):
     """
     装载前N个词向量
     :param filename:
@@ -22,7 +23,7 @@ def _load_vectors(filename, head_n=None):
     line_count = 0
     data = {}
     try:
-        fin = io.open(filename, 'r', encoding=params.OPEN_FILE_ENCODING,
+        fin = io.open(filename, 'r', encoding=open_encoding,
                       newline='\n', errors='ignore')
     except FileNotFoundError as error:
         print(error)
@@ -44,7 +45,8 @@ def _load_vectors(filename, head_n=None):
     return data
 
 
-def _pre_process_nltk(src_fname, tgt_fname):
+def _pre_process_nltk(src_fname, tgt_fname,
+                      open_encoding='utf-8', save_encoding='utf-8'):
     """
     transform raw train data to standard format
     save them to tgt_file
@@ -52,8 +54,8 @@ def _pre_process_nltk(src_fname, tgt_fname):
     使用NLTK做英文切词，主要切标点符号和didn't之类
     :return: None
     """
-    with open(src_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as src_file, \
-            open(tgt_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as tgt_file:
+    with open(src_fname, 'r', encoding=open_encoding) as src_file, \
+            open(tgt_fname, 'w', encoding=save_encoding) as tgt_file:
         for line in src_file:
             field_list = line.split('\t')
             for sentence in [field_list[0], field_list[2]]:
@@ -65,7 +67,8 @@ def _pre_process_nltk(src_fname, tgt_fname):
             tgt_file.write(field_list[4])
 
 
-def _pre_process(src_fname, tgt_fname):
+def _pre_process(src_fname, tgt_fname,
+                 open_encoding='utf-8', save_encoding='utf-8'):
     """
     transform raw train data to standard format
     save them to tgt_file
@@ -79,8 +82,8 @@ def _pre_process(src_fname, tgt_fname):
     punctuation_pattern = re.compile(params.MATCH_PUNCTUATION_STR)
     number_pattern = re.compile(params.MATCH_NUMBER_STR)
     illegal_char_pattern = re.compile(params.MATCH_ILLEGAL_CHAR_STR)
-    with open(src_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as src_file, \
-            open(tgt_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as tgt_file:
+    with open(src_fname, 'r', encoding=open_encoding) as src_file, \
+            open(tgt_fname, 'w', encoding=save_encoding) as tgt_file:
         for line in src_file:
             field_list = line.split('\t')
             for sentence in [field_list[0], field_list[2]]:
@@ -95,19 +98,19 @@ def _pre_process(src_fname, tgt_fname):
                         token = tools.transform_addr_full_format(token)
                         tgt_file.write(token+' ')
                     else:
-                        print(token, 'is a NaN or illegal char')
+                        print(token, 'is a number or illegal char')
                 tgt_file.write('\t')
             tgt_file.write(field_list[4])
 
 
-def _read_words(fname):
+def _read_words(fname, open_encoding='utf-8'):
     """
     read all distinct words
     :param fname:
     :return: set, {'apple', 'banana', ...}
     """
     ret_words = set()
-    with open(fname, 'r', encoding=params.OPEN_FILE_ENCODING) as file:
+    with open(fname, 'r', encoding=open_encoding) as file:
         for line in file:
             field_list = line.split('\t')
             source1, source2 = field_list[0], field_list[1]
@@ -117,7 +120,8 @@ def _read_words(fname):
     return ret_words
 
 
-def get_needed_vectors(processed_train_fname, fastText_vecs_fname, needed_vecs_fname):
+def get_needed_vectors(processed_train_fname, fastText_vecs_fname, needed_vecs_fname,
+                       open_encoding='utf-8', save_encoding='utf-8'):
     """
     read all distinct words from processed train file
     if word not in needed word vectors file, get it's vector from fastText word vectors file
@@ -133,8 +137,8 @@ def get_needed_vectors(processed_train_fname, fastText_vecs_fname, needed_vecs_f
             print(word, 'not in needed word2vec')
             is_all_in_needed = False
     if not is_all_in_needed:
-        with open(fastText_vecs_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as fastText_file, \
-                open(needed_vecs_fname, 'a', encoding=params.SAVE_FILE_ENCODING) as needed_file:
+        with open(fastText_vecs_fname, 'r', encoding=open_encoding) as fastText_file, \
+                open(needed_vecs_fname, 'a', encoding=save_encoding) as needed_file:
             line_count = 0
             print('============ In get_needed_vectors() func ============')
             for line in fastText_file:
@@ -153,15 +157,12 @@ def get_needed_vectors(processed_train_fname, fastText_vecs_fname, needed_vecs_f
     return needed_word2vec
 
 
-def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
+def split_train_val_test(raw_fname, train_fname, val_fname, test_fname,
+                         open_encoding='utf-8', save_encoding='utf-8'):
     """
     randomly split raw data to train data, val data and test data
     train : val : test = 8:1:1
     test data used for unbiased estimation of model performance
-    :param raw_fname:
-    :param train_fname:
-    :param val_fname:
-    :param test_fname:
     :return: None
     """
     if raw_fname in [train_fname, val_fname, test_fname]:
@@ -173,10 +174,10 @@ def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
         print('\n======== In split_train_val_test function ========')
         print('Train, val and test data already exists.')
         return
-    with open(raw_fname, 'r', encoding=params.OPEN_FILE_ENCODING) as raw_file, \
-            open(train_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as train_file, \
-            open(val_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as val_file, \
-            open(test_fname, 'w', encoding=params.SAVE_FILE_ENCODING) as test_file:
+    with open(raw_fname, 'r', encoding=open_encoding) as raw_file, \
+            open(train_fname, 'w', encoding=save_encoding) as train_file, \
+            open(val_fname, 'w', encoding=save_encoding) as val_file, \
+            open(test_fname, 'w', encoding=save_encoding) as test_file:
         for line in raw_file:
             rand_value = random.rand()
             if rand_value >= 0.2:
@@ -187,14 +188,13 @@ def split_train_val_test(raw_fname, train_fname, val_fname, test_fname):
                 test_file.write(line)
 
 
-def load_pretrained_vecs(fname):
+def load_pretrained_vecs(fname, open_encoding='utf-8'):
     """
     load needed word vectors
-    :param fname:
     :return: dict, {word: str => embedding: numpy array}
     """
     word2vec = {}
-    with open(fname, 'r', encoding=params.OPEN_FILE_ENCODING) as vecs_file:
+    with open(fname, 'r', encoding=open_encoding) as vecs_file:
         for line in vecs_file:
             tokens = line.rstrip().replace('\n', '').split(' ')
             word = tokens[0]
@@ -220,8 +220,8 @@ def get_embedding_matrix(word2id, word2vec, vec_dim):
     return embedding_matrix
 
 
-def fit_tokenizer(fname):
-    file = open(fname, 'r', encoding=params.OPEN_FILE_ENCODING)
+def fit_tokenizer(fname, open_encoding='utf-8'):
+    file = open(fname, 'r', encoding=open_encoding)
     text = file.read()
     file.close()
     texts = [text]
@@ -231,16 +231,14 @@ def fit_tokenizer(fname):
     return tokenizer
 
 
-def generate_in_out_pair_file(fname, tokenizer):
+def generate_in_out_pair_file(fname, tokenizer, open_encoding='utf-8'):
     """
     generate func, generate a input-output pair at a time
     yield a tuple at a time
     (source1_word_id_seq, source2_word_id_list, label)
-    :param fname:
-    :param tokenizer:
     :return: a iterator
     """
-    with open(fname, 'r', encoding=params.OPEN_FILE_ENCODING) as file:
+    with open(fname, 'r', encoding=open_encoding) as file:
         for line in file:
             if line and line != '\n':
                 field_list = line.split('\t')
@@ -309,19 +307,23 @@ def generate_batch_data_file(fname, tokenizer, max_len, batch_size, pad, cut):
 
 
 if __name__ == '__main__':
-    # # ========== test _load_vectors() function ==========
-    # needed_word2vec = _load_vectors(params.fastText_EN_PRE_TRAINED_WIKI_WORD_VEC, head_n=50)
-    # for word, vector in needed_word2vec.items():
-    #     print(word, end=' ')
-    #     for value in vector:
-    #         print(value, end=' ')
-    #     print()
+    cikm_en = available_datasets[0]
+    cikm_en = params.get_dataset_params(cikm_en)
 
-    # # ========== test _read_words() function ==========
-    # all_distinct_words = _read_words(params.PROCESSED_EN_TRAIN_DATA)
-    # for word in all_distinct_words:
-    #     print(word)
-    # print('total distinct words number:', len(all_distinct_words))
+    # ========== test _load_vectors() function ==========
+    needed_word2vec = _load_vectors(cikm_en.fastText_en_pretrained_wiki_word_vecs_url,
+                                    head_n=50)
+    for word, vector in needed_word2vec.items():
+        print(word, end=' ')
+        for value in vector:
+            print(value, end=' ')
+        print()
+
+    # ========== test _read_words() function ==========
+    all_distinct_words = _read_words(cikm_en.processed_en_train_url)
+    for word in all_distinct_words:
+        print(word, end=' | ')
+    print('\ntotal distinct words number:', len(all_distinct_words))
 
     # ========== test NLTK ==========
     sentence = "i'v     isn't   can't haven't aren't won't i'm it's we're who's where's i'd we'll we've he's."
@@ -331,15 +333,15 @@ if __name__ == '__main__':
         print(token, end=' ')
     print()
 
-    # # ========== test _pre_process() func ==========
-    # _pre_process(params.CIKM_ENGLISH_TRAIN_DATA, params.PROCESSED_EN_TRAIN_DATA)
-    #
-    # # ========== test _get_needed_vectors() func ==========
-    # needed_word2vec = get_needed_vectors(processed_train_fname=params.PROCESSED_EN_TRAIN_DATA,
-    #                                      fastText_vecs_fname=params.fastText_EN_PRE_TRAINED_WIKI_WORD_VEC,
-    #                                      needed_vecs_fname=params.PROCESSED_EN_WORD_VEC)
-    # for word, vector in needed_word2vec.items():
-    #     print(word, end=' ')
-    #     print(vector)
+    # ========== test _pre_process() func ==========
+    _pre_process(cikm_en.cikm_en_train_url, cikm_en.processed_en_train_url)
+
+    # ========== test get_needed_vectors() func ==========
+    needed_word2vec = get_needed_vectors(processed_train_fname=cikm_en.processed_en_train_url,
+                                         fastText_vecs_fname=cikm_en.fastText_en_pretrained_wiki_word_vecs_url,
+                                         needed_vecs_fname=cikm_en.processed_en_word_vecs_url)
+    for word, vector in needed_word2vec.items():
+        print(word, end=' ')
+        print(vector)
 
     # ========== other test ==========

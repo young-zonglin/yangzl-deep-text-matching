@@ -40,7 +40,7 @@ class LRSchedulerPerStep(Callback):
         self.end_decay = end_decay
         self.step_num = 0
 
-    def on_batch_begin(self, batch, logs = None):
+    def on_batch_begin(self, batch, logs=None):
         self.step_num += 1
         t = self.step_num
         n = self.n_model

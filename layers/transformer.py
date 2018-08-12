@@ -224,7 +224,7 @@ class LRSchedulerPerStep(Callback):
         self.warm = warmup**-1.5
         self.step_num = 0
 
-    def on_batch_begin(self, batch, logs = None):
+    def on_batch_begin(self, batch, logs=None):
         self.step_num += 1
         lr = self.basic * min(self.step_num**-0.5, self.step_num*self.warm)
         K.set_value(self.model.optimizer.lr, lr)

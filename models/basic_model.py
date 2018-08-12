@@ -9,6 +9,8 @@ from keras.models import Model
 from keras.models import load_model
 
 from configs import params, net_conf
+from configs.net_conf import model_name_full_abbr
+from configs.params import dataset_name_full_abbr
 from utils import tools, reader
 
 # TensorFlow显存管理
@@ -46,21 +48,21 @@ class BasicModel:
         self.val_samples_count = 0
         self.test_samples_count = 0
 
-    def setup(self, raw_fname, train_fname, val_fname, test_fname,
-              pretrained_word_vecs_fname, hyperparams):
-        self.pretrained_word_vecs_fname = pretrained_word_vecs_fname
-        reader.split_train_val_test(raw_fname, train_fname, val_fname, test_fname)
-        self.raw_fname = raw_fname
-        self.train_fname = train_fname
-        self.val_fname = val_fname
-        self.test_fname = test_fname
+    def setup(self, hyperparams, dataset_params):
+        self.pretrained_word_vecs_fname = dataset_params.pretrained_word_vecs_url
+        self.raw_fname = dataset_params.raw_url
+        self.train_fname = dataset_params.train_url
+        self.val_fname = dataset_params.val_url
+        self.test_fname = dataset_params.test_url
+        reader.split_train_val_test(self.raw_fname,
+                                    self.train_fname, self.val_fname, self.test_fname)
 
-        run_which_model = net_conf.RUN_WHICH_MODEL
-        which_language = net_conf.WHICH_LANGUAGE
+        run_which_model = model_name_full_abbr[self.__class__.__name__]
+        dataset_name = dataset_name_full_abbr[dataset_params.__class__.__name__]
         setup_time = tools.get_current_time()
         self.this_model_save_dir = \
             params.RESULT_SAVE_DIR + os.path.sep + \
-            run_which_model + '_' + which_language + '_' + setup_time
+            run_which_model + '_' + dataset_name + '_' + setup_time
         if not os.path.exists(self.this_model_save_dir):
             os.makedirs(self.this_model_save_dir)
 
@@ -217,7 +219,7 @@ class BasicModel:
     def save(self, model_url):
         self.model.save(model_url)
         print("\n================== 保存模型 ==================")
-        print(net_conf.RUN_WHICH_MODEL, 'has been saved in', model_url)
+        print(self.__class__.__name__, 'has been saved in', model_url)
 
     def load(self, model_url):
         self.model = load_model(model_url)

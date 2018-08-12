@@ -1,15 +1,18 @@
-from configs import net_conf
+from configs import net_conf, params
+from configs.net_conf import available_models
+from configs.params import available_datasets
 from models.model_factory import ModelFactory
 from utils import tools
 
 
-def main():
-    run_which_model = net_conf.RUN_WHICH_MODEL
-    which_language = net_conf.WHICH_LANGUAGE
-    text_match_model = ModelFactory.make_model(run_which_model)
-    hyperparams = net_conf.get_hyperparams(run_which_model)
-    tools.train_model(text_match_model, hyperparams, which_language)
+def train():
+    run_this_model = available_models[1]
+    text_match_model = ModelFactory.make_model(run_this_model)
+    hyperparams = net_conf.get_hyperparams(run_this_model)
+    dataset_name = available_datasets[0]
+    dataset_params = params.get_dataset_params(dataset_name)
+    tools.train_model(text_match_model, hyperparams, dataset_params)
 
 
 if __name__ == '__main__':
-    main()
+    train()
