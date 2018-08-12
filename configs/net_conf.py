@@ -152,8 +152,6 @@ class StackedBiLSTMDenseHParams(TrainHParams):
         self.lr_scheduler = LRSchedulerDoNothing()
 
         self.early_stop_monitor = 'val_acc'
-        self.early_stop_patience = 30
-        self.early_stop_min_delta = 0
 
         # Set the value of hyper params batch_size => done
         # See my evernote for more info.
