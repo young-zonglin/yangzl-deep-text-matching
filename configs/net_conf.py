@@ -67,6 +67,11 @@ class TrainHParams(BasicHParams):
         self.optimizer = Adam()
         self.lr_scheduler = LRSchedulerDoNothing()
 
+        self.kernel_l2_lambda = 0
+        self.recurrent_l2_lambda = 0
+        self.bias_l2_lambda = 0
+        self.activity_l2_lambda = 0
+
         self.early_stop_monitor = 'val_loss'
         self.early_stop_mode = 'auto'
         # 10 times waiting is not enough.
@@ -80,6 +85,11 @@ class TrainHParams(BasicHParams):
         ret_info = list()
         ret_info.append('optimizer: ' + str(self.optimizer) + '\n')
         ret_info.append('lr scheduler: ' + str(self.lr_scheduler) + '\n\n')
+
+        ret_info.append('kernel l2 lambda: ' + str(self.kernel_l2_lambda) + '\n')
+        ret_info.append('recurrent l2 lambda: ' + str(self.recurrent_l2_lambda) + '\n')
+        ret_info.append('bias l2 lambda: ' + str(self.bias_l2_lambda) + '\n')
+        ret_info.append('activity l2 lambda: ' + str(self.activity_l2_lambda) + '\n\n')
 
         ret_info.append('early stop monitor: ' + str(self.early_stop_monitor) + '\n')
         ret_info.append('early stop mode: ' + str(self.early_stop_mode) + '\n')
@@ -144,6 +154,7 @@ class StackedBiLSTMDenseHParams(TrainHParams):
         self.early_stop_monitor = 'val_acc'
         self.early_stop_patience = 30
         self.early_stop_min_delta = 0
+
         # Set the value of hyper params batch_size => done
         # See my evernote for more info.
         # There is no need to adjust batch_size dynamically.
@@ -155,11 +166,6 @@ class StackedBiLSTMDenseHParams(TrainHParams):
         ret_info.append('bi-lstm retseq layer num: ' + str(self.bilstm_retseq_layer_num) + '\n')
         ret_info.append('state dim: ' + str(self.state_dim) + '\n')
         ret_info.append('lstm dropout proba: ' + str(self.lstm_p_dropout) + '\n\n')
-
-        ret_info.append('kernel l2 lambda: ' + str(self.kernel_l2_lambda) + '\n')
-        ret_info.append('recurrent l2 lambda: ' + str(self.recurrent_l2_lambda) + '\n')
-        ret_info.append('bias l2 lambda: ' + str(self.bias_l2_lambda) + '\n')
-        ret_info.append('activity l2 lambda: ' + str(self.activity_l2_lambda) + '\n\n')
 
         ret_info.append('unit reduce: ' + str(self.unit_reduce) + '\n')
         ret_info.append('dense layer num: ' + str(self.dense_layer_num) + '\n')
@@ -184,6 +190,12 @@ class RNMTPlusEncoderBiLSTMDenseHParams(TrainHParams):
         self.initial_unit_num = 128
         self.dense_p_dropout = 0.5
 
+        # follow origin paper
+        self.kernel_l2_lambda = 1e-5
+        self.recurrent_l2_lambda = 1e-5
+        self.bias_l2_lambda = 1e-5
+        self.activity_l2_lambda = 0
+
         self.lr = 0.001
         self.beta_1 = 0.9
         self.beta_2 = 0.999
@@ -191,6 +203,8 @@ class RNMTPlusEncoderBiLSTMDenseHParams(TrainHParams):
         self.optimizer = Adam(self.lr, self.beta_1, self.beta_2, epsilon=self.eps)  # follow origin paper
         # should use RNMT+ lr scheduler here
         self.lr_scheduler = LRSchedulerDoNothing()
+
+        self.early_stop_monitor = 'val_acc'
 
         self.batch_size = 128  # Recommended by "Exploring the Limits of Language Modeling".
 
@@ -249,8 +263,7 @@ class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
         self.cut = 'post'
 
         self.early_stop_monitor = 'val_acc'
-        self.early_stop_patience = 30
-        self.early_stop_min_delta = 0
+
         self.batch_size = 64  # follow "attention-is-all-you-need-keras"
 
     def __str__(self):

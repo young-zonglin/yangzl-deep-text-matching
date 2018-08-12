@@ -3,6 +3,7 @@ import re
 import time
 
 import matplotlib.pyplot as plt
+from keras import regularizers
 from keras.layers import Dense, Dropout
 
 from configs import params
@@ -24,7 +25,9 @@ class UnitReduceDense:
     What called in the `call` method of the Keras layer is the backend function.
     Define a class(not inherit from `Layer` class), then calls Keras layers in its __call__ method.
     """
-    def __init__(self, layer_num, initial_unit_num, p_dropout, reduce=False):
+    def __init__(self, layer_num, initial_unit_num, p_dropout=0.5,
+                 kernel_l2_lambda=0, bias_l2_lambda=0, activity_l2_lambda=0,
+                 reduce=False):
         self.layers = []
         for i in range(layer_num):
             if reduce:
@@ -33,7 +36,11 @@ class UnitReduceDense:
                 self.current_unit_num = max(int(initial_unit_num/(2**i)), 32)
             else:
                 self.current_unit_num = max(initial_unit_num, 32)
-            self.layers.append(Dense(self.current_unit_num, activation='relu'))
+            this_dense = Dense(self.current_unit_num, activation='relu',
+                               kernel_regularizer=regularizers.l2(kernel_l2_lambda),
+                               bias_regularizer=regularizers.l2(bias_l2_lambda),
+                               activity_regularizer=regularizers.l2(activity_l2_lambda))
+            self.layers.append(this_dense)
             self.layers.append(Dropout(p_dropout))
 
     def __call__(self, x):

@@ -1,4 +1,5 @@
 from keras import backend as K
+from keras import regularizers
 from keras.callbacks import Callback
 from keras.layers import Bidirectional, LSTM, Dropout, Add
 
@@ -6,8 +7,14 @@ from layers.layers import LayerNormalization
 
 
 class EncoderLayer:
-    def __init__(self, state_dim, lstm_p_dropout):
-        self.retseq_bilstm = Bidirectional(LSTM(state_dim, return_sequences=True), merge_mode='concat')
+    def __init__(self, state_dim, lstm_p_dropout,
+                 kernel_l2_lambda, recurrent_l2_lambda, bias_l2_lambda, activity_l2_lambda):
+        retseq_lstm = LSTM(state_dim, return_sequences=True,
+                           kernel_regularizer=regularizers.l2(kernel_l2_lambda),
+                           recurrent_regularizer=regularizers.l2(recurrent_l2_lambda),
+                           bias_regularizer=regularizers.l2(bias_l2_lambda),
+                           activity_regularizer=regularizers.l2(activity_l2_lambda))
+        self.retseq_bilstm = Bidirectional(retseq_lstm, merge_mode='concat')
         self.dropout = Dropout(lstm_p_dropout)
         self.layer_norm = LayerNormalization()
 
@@ -20,8 +27,11 @@ class EncoderLayer:
 
 
 class Encoder:
-    def __init__(self, retseq_layer_num, state_dim, p_dropout):
-        self.enc_layers = [EncoderLayer(state_dim, p_dropout) for _ in range(retseq_layer_num)]
+    def __init__(self, retseq_layer_num, state_dim, p_dropout,
+                 kernel_l2_lambda, recurrent_l2_lambda, bias_l2_lambda, activity_l2_lambda):
+        self.enc_layers = [EncoderLayer(state_dim, p_dropout,
+                                        kernel_l2_lambda, recurrent_l2_lambda, bias_l2_lambda,
+                                        activity_l2_lambda) for _ in range(retseq_layer_num)]
 
     def __call__(self, word_vec_seq):
         x = word_vec_seq
