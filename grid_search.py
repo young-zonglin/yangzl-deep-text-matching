@@ -67,7 +67,23 @@ def tune_l2_lambda_SBLDModel():
                     tools.train_model(text_match_model, hyperparams, dataset_params)
 
 
+def tune_state_dim_SBLDModel():
+    run_this_model = available_models[1]
+    model_full_name = model_name_abbr_full[run_this_model]
+    print('============ ' + model_full_name + ' tune hidden state dim num ============')
+    # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
+    state_dims = [100, 150, 200, 250, 300]
+    for state_dim in state_dims:
+        text_match_model = ModelFactory.make_model(run_this_model)
+        hyperparams = net_conf.get_hyperparams(run_this_model)
+        hyperparams.state_dim = state_dim
+        dataset_name = available_datasets[0]
+        dataset_params = params.get_dataset_params(dataset_name)
+        tools.train_model(text_match_model, hyperparams, dataset_params)
+
+
 if __name__ == '__main__':
     # tune_dropout_rate_SBLDModel()
     # tune_layer_num_SBLDModel()
-    tune_l2_lambda_SBLDModel()
+    # tune_l2_lambda_SBLDModel()
+    tune_state_dim_SBLDModel()
