@@ -6,27 +6,14 @@ import matplotlib.pyplot as plt
 from keras.layers import Dense, Dropout
 
 from configs import params
+from configs.params import available_datasets
 
 
-def train_model(text_match_model, hyperparams, which_language):
-    if which_language == 'en':
-        text_match_model.setup(raw_fname=params.PROCESSED_EN_TRAIN_URL,
-                               train_fname=params.EN_TRAIN_URL,
-                               val_fname=params.EN_VAL_URL,
-                               test_fname=params.EN_TEST_URL,
-                               pretrained_word_vecs_fname=params.PROCESSED_EN_WORD_VEC_URL,
-                               hyperparams=hyperparams)
-    else:
-        text_match_model.setup(raw_fname=params.PROCESSED_ES_TRAIN_URL,
-                               train_fname=params.ES_TRAIN_URL,
-                               val_fname=params.ES_VAL_URL,
-                               test_fname=params.ES_TEST_URL,
-                               pretrained_word_vecs_fname=params.PROCESSED_ES_WORD_VEC_URL,
-                               hyperparams=hyperparams)
+def train_model(text_match_model, hyperparams, dataset_params):
+    text_match_model.setup(hyperparams, dataset_params)
     text_match_model.build()
     text_match_model.compile()
     text_match_model.fit_generator()
-
     text_match_model.evaluate_generator()
 
 
@@ -173,21 +160,21 @@ def show_save_record(model_save_dir, history, train_begin_time):
                 plt_acc, plt_loss, plt_val_acc, plt_val_loss)
 
 
-def print_save_str(to_print_save, save_url):
+def print_save_str(to_print_save, save_url, save_encoding='utf-8'):
     print(to_print_save)
     save_url_dir = os.path.dirname(save_url)
     if not os.path.exists(save_url_dir):
         os.makedirs(save_url_dir)
-    with open(save_url, 'a', encoding=params.SAVE_FILE_ENCODING) as file:
+    with open(save_url, 'a', encoding=save_encoding) as file:
         file.write(to_print_save)
 
 
-def data_statistic(fname):
+def data_statistic(fname, open_encoding='utf-8'):
     # 统计正负样本分布
     total_count = 0
     positive_count = 0
     negative_count = 0
-    with open(fname, 'r', encoding=params.OPEN_FILE_ENCODING) as file:
+    with open(fname, 'r', encoding=open_encoding) as file:
         for line in file:
             if line and line != '\n':
                 field_list = line.split('\t')
@@ -215,11 +202,15 @@ if __name__ == '__main__':
     # str1 = "I don't like 'Random Number'."
     # str1 = "I don't like 'Random Number' at all"
     # print(remove_symbols(str1, params.MATCH_SINGLE_QUOTE_STR))
-    fname = params.PROCESSED_EN_TRAIN_URL
+
+    # ========== test data_statistic() func ==========
+    cikm_en = available_datasets[0]
+    cikm_en = params.get_dataset_params(cikm_en)
+    fname = cikm_en.raw_url
     data_statistic(fname)
-    fname = params.EN_TRAIN_URL
+    fname = cikm_en.train_url
     data_statistic(fname)
-    fname = params.EN_VAL_URL
+    fname = cikm_en.val_url
     data_statistic(fname)
-    fname = params.EN_TEST_URL
+    fname = cikm_en.test_url
     data_statistic(fname)

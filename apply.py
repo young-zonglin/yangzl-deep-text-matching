@@ -1,29 +1,20 @@
 from configs import params, net_conf
-from models.basic_model import BasicModel
+from configs.net_conf import available_models
+from configs.params import available_datasets
+from models.model_factory import ModelFactory
 
 
-def main():
-    text_match_model = BasicModel()
+def apply():
+    model_name = available_models[1]
+    text_match_model = ModelFactory.make_model(model_name)
     model_url = ''
     text_match_model.load(model_url)
-    which_language = net_conf.WHICH_LANGUAGE
-    hyperparams = net_conf.get_hyperparams('BasicModel')
+    hyperparams = net_conf.get_hyperparams(model_name)
+    dataset_name = available_datasets[0]
+    dataset_params = params.get_dataset_params(dataset_name)
 
-    if which_language == 'en':
-        text_match_model.setup(raw_fname=params.PROCESSED_EN_TRAIN_URL,
-                               train_fname=params.EN_TRAIN_URL,
-                               val_fname=params.EN_VAL_URL,
-                               test_fname=params.EN_TEST_URL,
-                               pretrained_word_vecs_fname=params.PROCESSED_EN_WORD_VEC_URL,
-                               hyperparams=hyperparams)
-    else:
-        text_match_model.setup(raw_fname=params.PROCESSED_ES_TRAIN_URL,
-                               train_fname=params.ES_TRAIN_URL,
-                               val_fname=params.ES_VAL_URL,
-                               test_fname=params.ES_TEST_URL,
-                               pretrained_word_vecs_fname=params.PROCESSED_ES_WORD_VEC_URL,
-                               hyperparams=hyperparams)
+    text_match_model.setup(hyperparams, dataset_params)
     text_match_model.evaluate_generator()
 
 if __name__ == '__main__':
-    main()
+    apply()
