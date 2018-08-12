@@ -113,9 +113,12 @@ class StackedBiLSTMDenseHParams:
         # Information will be lost as the rate continue to increase.
         self.lstm_p_dropout = 0.5
 
-        self.kernel_l2_lambda = 1e-8
-        self.recurrent_l2_lambda = 1e-8
-        self.bias_l2_lambda = 1e-8
+        # Excessive regularization means high bias.
+        # Insufficient regularization means no improvement in overfitting.
+        # The following configuration of hyper params are good values.
+        self.kernel_l2_lambda = 1e-5
+        self.recurrent_l2_lambda = 1e-5
+        self.bias_l2_lambda = 1e-5
         self.activity_l2_lambda = 0
 
         self.unit_reduce = False
