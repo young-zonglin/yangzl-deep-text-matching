@@ -13,7 +13,6 @@ def tune_dropout_rate_SBLDModel():
     model_name = available_models[1]
     model_full_name = model_name_abbr_full[model_name]
     print('============ ' + model_full_name + ' tune dropout rate ============')
-    # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
     # Don't set dropout rate too large, because it will cause information loss.
     # According to previous experiment: lstm rate >= 0.5, 0 <= dense rate <= 0.2
     lstm_p_dropouts = [0.5, 0.6, 0.7]
@@ -48,6 +47,7 @@ def tune_l2_lambda_SBLDModel():
     run_this_model = available_models[1]
     model_full_name = model_name_abbr_full[run_this_model]
     print('============ ' + model_full_name + ' tune l2 lambda ============')
+    # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
     kernel_l2_lambdas = [1e-5, 1e-4]
     recurrent_l2_lambdas = [1e-5, 1e-4]
     bias_l2_lambdas = [1e-5, 1e-4]
@@ -72,7 +72,9 @@ def tune_state_dim_SBLDModel():
     model_full_name = model_name_abbr_full[run_this_model]
     print('============ ' + model_full_name + ' tune hidden state dim num ============')
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
-    state_dims = [150, 200, 250, 300]
+    # The hidden state dim of LSTM should have a certain relationship with the word emb dim.
+    # Information will be lost if dim is set to small.
+    state_dims = [350, 400, 450, 500, 550, 600, 650, 700]
     for state_dim in state_dims:
         text_match_model = ModelFactory.make_model(run_this_model)
         hyperparams = net_conf.get_hyperparams(run_this_model)
@@ -103,5 +105,5 @@ if __name__ == '__main__':
     # tune_dropout_rate_SBLDModel()
     # tune_layer_num_SBLDModel()
     # tune_l2_lambda_SBLDModel()
-    # tune_state_dim_SBLDModel()
-    tune_dropout_rate_REBLDModel()
+    tune_state_dim_SBLDModel()
+    # tune_dropout_rate_REBLDModel()
