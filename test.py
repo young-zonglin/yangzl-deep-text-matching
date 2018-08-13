@@ -6,7 +6,7 @@ from utils import tools
 
 
 def main():
-    run_this_model = available_models[1]
+    run_this_model = available_models[4]
     text_match_model = ModelFactory.make_model(run_this_model)
     hyperparams = net_conf.get_hyperparams(run_this_model)
     hyperparams.batch_size = 1

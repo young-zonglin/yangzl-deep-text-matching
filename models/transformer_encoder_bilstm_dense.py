@@ -24,7 +24,7 @@ class TransformerEncoderBiLSTMDenseModel(BasicModel):
         # 位置编号从1开始
         # word id亦从1开始
         pos_enc_layer = Embedding(len_limit + 1, d_pos_enc, trainable=False,
-                                  weights=[transformer.get_pos_enc_matrix(len_limit + 1, d_pos_enc)],
+                                  weights=[transformer.get_pos_enc_matrix(len_limit+1, d_pos_enc)],
                                   name='pos_enc_layer')
         transformer_encoder = transformer.Encoder(d_model, d_inner_hid, n_head, d_k, d_v,
                                                   layers_num=layers_num,

@@ -6,9 +6,10 @@ from layers import transformer
 model_name_abbr_full = {'ASDModel': 'AvgSeqDenseModel',
                         'SBLDModel': 'StackedBiLSTMDenseModel',
                         'TEBLDModel': 'TransformerEncoderBiLSTMDenseModel',
-                        'REBLDModel': "RNMTPlusEncoderBiLSTMDenseModel"}
+                        'REBLDModel': "RNMTPlusEncoderBiLSTMDenseModel",
+                        'MHAADModel': 'MultiHeadAttnAvgDenseModel'}
 model_name_full_abbr = {v: k for k, v in model_name_abbr_full.items()}
-available_models = ['ASDModel', 'SBLDModel', 'TEBLDModel', 'REBLDModel']
+available_models = ['ASDModel', 'SBLDModel', 'TEBLDModel', 'REBLDModel', 'MHAADModel']
 
 
 def get_hyperparams(model_name):
@@ -23,6 +24,8 @@ def get_hyperparams(model_name):
         return TransformerEncoderBiLSTMDenseHParams()
     elif model_name == available_models[3]:
         return RNMTPlusEncoderBiLSTMDenseHParams()
+    elif model_name == available_models[4]:
+        return MultiHeadAttnAvgDenseHParams()
     else:
         return BasicHParams()
 
@@ -296,6 +299,44 @@ class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
         return ''.join(ret_info) + super_str
 
 
+class MultiHeadAttnAvgDenseHParams(TrainHParams):
+    def __init__(self):
+        super(MultiHeadAttnAvgDenseHParams, self).__init__()
+        self.word_vec_dim = 300  # fastText pretrained word vec
+        self.d_model = self.word_vec_dim
+        self.n_head = 5  # h head
+        self.d_k = self.d_v = int(self.d_model / self.n_head)
+        self.p_dropout = 0.1
+
+        self.unit_reduce = False
+        self.dense_layer_num = 1
+        self.initial_unit_num = 128
+        self.dense_p_dropout = self.p_dropout
+
+        self.pad = 'post'
+        self.cut = 'post'
+
+        self.early_stop_monitor = 'val_acc'
+
+        self.batch_size = 128
+
+    def __str__(self):
+        ret_info = list()
+        ret_info.append('\n================== ' + self.current_classname + ' ==================\n')
+        ret_info.append('n head: ' + str(self.n_head) + '\n')
+        ret_info.append('dim of k: ' + str(self.d_k) + '\n')
+        ret_info.append('dim of v: ' + str(self.d_v) + '\n')
+        ret_info.append('dropout proba: ' + str(self.p_dropout) + '\n\n')
+
+        ret_info.append('unit reduce: ' + str(self.unit_reduce) + '\n')
+        ret_info.append('dense layer num: ' + str(self.dense_layer_num) + '\n')
+        ret_info.append('initial unit num: ' + str(self.initial_unit_num) + '\n')
+        ret_info.append('dense dropout proba: ' + str(self.dense_p_dropout) + '\n\n')
+
+        super_str = super(MultiHeadAttnAvgDenseHParams, self).__str__()
+        return ''.join(ret_info) + super_str
+
+
 if __name__ == '__main__':
     print(BasicHParams())
     print(TrainHParams())
@@ -303,3 +344,4 @@ if __name__ == '__main__':
     print(StackedBiLSTMDenseHParams())
     print(RNMTPlusEncoderBiLSTMDenseHParams())
     print(TransformerEncoderBiLSTMDenseHParams())
+    print(MultiHeadAttnAvgDenseHParams())
