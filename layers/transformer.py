@@ -147,7 +147,7 @@ class EncoderLayer:
 def get_pos_enc_matrix(max_len, d_emb):
     """
     位置编号从1开始
-    :param max_len: 应为max_seq_len + 1
+    :param max_len: 应为max_seq_len+1
     :param d_emb: dim of pos emb
     :return: matrix, like word embedding matrix
     """

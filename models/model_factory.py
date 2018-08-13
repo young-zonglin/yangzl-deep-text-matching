@@ -4,6 +4,7 @@ from models.basic_model import BasicModel
 from models.rnmt_encoder_bilstm_dense import RNMTPlusEncoderBiLSTMDenseModel
 from models.stacked_bilstm_dense import StackedBiLSTMDenseModel
 from models.transformer_encoder_bilstm_dense import TransformerEncoderBiLSTMDenseModel
+from models.multiheadattn_avg_dense import MultiHeadAttnAvgDenseModel
 
 
 class ModelFactory:
@@ -18,5 +19,7 @@ class ModelFactory:
             return TransformerEncoderBiLSTMDenseModel()
         elif model_name == available_models[3]:
             return RNMTPlusEncoderBiLSTMDenseModel()
+        elif model_name == available_models[4]:
+            return MultiHeadAttnAvgDenseModel()
         else:
             return BasicModel()
