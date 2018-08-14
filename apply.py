@@ -16,5 +16,6 @@ def apply():
     text_match_model.setup(hyperparams, dataset_params)
     text_match_model.evaluate_generator()
 
+
 if __name__ == '__main__':
     apply()
