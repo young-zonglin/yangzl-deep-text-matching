@@ -234,23 +234,26 @@ class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
     def __init__(self):
         super(TransformerEncoderBiLSTMDenseHParams, self).__init__()
         self.transformer_mode = 0
-        self.word_vec_dim = 300  # fastText pretrained word vec
-        self.layers_num = 3
+        self.word_vec_dim = 300  # fastText pretrained word vec dim
+        self.layers_num = 1  # learning ability is enough
         self.d_model = self.word_vec_dim
-        self.d_inner_hid = 512  # d_ff, follow "attention-is-all-you-need-keras"
-        self.n_head = 5  # h head
+        # d_ff, imitate original paper
+        self.d_inner_hid = int(self.d_model*4)
+        self.n_head = 5  # h head, imitate the original paper
+        # In original paper, d_k = d_v = 64
         self.d_k = self.d_v = int(self.d_model/self.n_head)
         self.d_pos_enc = self.d_model
-        self.p_dropout = 0.1  # follow origin paper
+        self.p_dropout = 0.1  # follow original paper
 
-        self.state_dim = 100
-        self.lstm_p_dropout = 0.5
+        # Should be proportional to the dimension of the feature vectors.
+        self.state_dim = self.d_model
+        self.lstm_p_dropout = self.p_dropout
 
-        # Follow the practice of CNNs
+        # Follow the practice of `Transformer`
         self.unit_reduce = False
-        self.dense_layer_num = 2
-        self.initial_unit_num = 128
-        self.dense_p_dropout = 0.5
+        self.dense_layer_num = 1
+        self.initial_unit_num = int(self.d_model)
+        self.dense_p_dropout = self.p_dropout
 
         self.lr = 0.001
         self.beta_1 = 0.9
@@ -258,14 +261,22 @@ class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
         self.eps = 1e-9
         self.optimizer = Adam(self.lr, self.beta_1, self.beta_2, epsilon=self.eps)  # follow origin paper
         self.warmup_step = 4000  # in origin paper, this value is set to 4000
+        # This learning rate scheduling strategy is very important.
         self.lr_scheduler = transformer.LRSchedulerPerStep(self.d_model, self.warmup_step)
 
         self.pad = 'post'
         self.cut = 'post'
 
+        # Although val loss no longer decreases, val acc may continue to increase.
+        # Although val loss can more accurately reflect the performance of the model,
+        # we actually use val acc to evaluate the performance of the model.
         self.early_stop_monitor = 'val_acc'
 
-        self.batch_size = 64  # follow "attention-is-all-you-need-keras"
+        # if set too small => GPU usage rate is low => training is slow
+        # if set too large => will miss more samples
+        # When set batch size to 512, the performance of the model on the validation set
+        # is close to setting the batch size to 128.
+        self.batch_size = 512
 
     def __str__(self):
         ret_info = list()
@@ -310,7 +321,7 @@ class MultiHeadAttnAvgDenseHParams(TrainHParams):
 
         self.unit_reduce = False
         self.dense_layer_num = 1
-        self.initial_unit_num = 128
+        self.initial_unit_num = self.d_model
         self.dense_p_dropout = self.p_dropout
 
         self.pad = 'post'

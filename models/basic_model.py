@@ -13,6 +13,9 @@ from configs.net_conf import model_name_full_abbr
 from configs.params import dataset_name_full_abbr
 from utils import tools, reader
 
+# Specify which GPU card to use.
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
 # TensorFlow显存管理
 config = tf.ConfigProto()
 config.gpu_options.per_process_gpu_memory_fraction = 0.9

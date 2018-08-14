@@ -6,7 +6,7 @@ from utils import tools
 
 
 def train():
-    run_this_model = available_models[4]
+    run_this_model = available_models[2]
     text_match_model = ModelFactory.make_model(run_this_model)
     hyperparams = net_conf.get_hyperparams(run_this_model)
     dataset_name = available_datasets[0]
