@@ -36,14 +36,12 @@ class TransformerEncoderBiLSTMDenseModel(BasicModel):
         src1_pos = get_pos_seq(src1_seq)
         src2_pos = get_pos_seq(src2_seq)
 
-        # TODO Transformer-encoder-based model does not converge
+        # Transformer-encoder-based model does not converge => done
         # 训练集较小，且模型参数较多，学习能力较强，应该不是欠拟合
-        # 输入数据有问题？ => 不是的，可以训练LSTM-based model
-        # 模型设计有问题？ => 感觉求平均有点问题，试试用LTSM编码 => 失败了
-        # 喂给Encoder的数据有问题？ => 打印看看
-        # Transformer Encoder实现有问题？ => 试一试tensor2tensor or 原作者的实现
-        # 陷入局部最优？ =>
-        # 学习率调度策略是否合理？ => warm up step, lr up, then, down
+        # 输入数据应该也没有问题，因为可以训练LSTM-based model
+        # 感觉求平均有点问题，试试用LTSM编码
+        # Solving the problem of non-convergence through the learning rate scheduling strategy
+        # warm up step, lr up, then, down
         src1_seq_repr_seq = transformer_encoder(src1_word_vec_seq, src1_seq, src_pos=src1_pos)
         src2_seq_repr_seq = transformer_encoder(src2_word_vec_seq, src2_seq, src_pos=src2_pos)
 

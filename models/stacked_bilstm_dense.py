@@ -15,12 +15,11 @@ class StackedBiLSTMDenseModel(BasicModel):
         src1_hidden_seq = input_dropout(src1_word_vec_seq)
         src2_hidden_seq = input_dropout(src2_word_vec_seq)
 
-        # TODO 解决LSTM-based model过拟合的问题
+        # 缓解LSTM-based model过拟合的问题 => done
         # 过拟合的症状 => 训练集损失还在下降，val loss开始震荡
-        # 过拟合的解决方案 =>
         # 正则化技术 => L1/L2 regularization; Max norm constraints; Dropout; LN和BN
         # 更多的数据 => 数据增强 => 生成式模型，GANs？
-        # 更小规模的网络 => 使用更窄更深的网络 => RNN和CNN都有参数共享 => 模型复杂度和特征维数应与数据规模成正比
+        # 减少参数数量 => RNN和CNN都有参数共享 => 模型复杂度和特征维数应与数据规模成正比
         # 提前结束训练
         bilstm_retseq_layer_num = self.hyperparams.bilstm_retseq_layer_num
         state_dim = self.hyperparams.state_dim
