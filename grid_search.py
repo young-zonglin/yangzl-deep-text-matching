@@ -33,7 +33,7 @@ def tune_layer_num_SBLDModel():
     model_full_name = model_name_abbr_full[run_this_model]
     print('============ ' + model_full_name + ' tune layer num ============')
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
-    layer_nums = [0, 1, 2]
+    layer_nums = [0, 1, 2, 3]
     for num in layer_nums:
         text_match_model = ModelFactory.make_model(run_this_model)
         hyperparams = net_conf.get_hyperparams(run_this_model)
@@ -74,7 +74,7 @@ def tune_state_dim_SBLDModel():
     # RNMTPlusEncoderBiLSTMDenseModel | StackedBiLSTMDenseModel
     # The hidden state dim of LSTM should have a certain relationship with the word emb dim.
     # Information will be lost if dim is set to small.
-    state_dims = [350, 400, 450, 500, 550, 600, 650, 700]
+    state_dims = [100, 200, 300, 400, 500, 600, 700]
     for state_dim in state_dims:
         text_match_model = ModelFactory.make_model(run_this_model)
         hyperparams = net_conf.get_hyperparams(run_this_model)
@@ -88,17 +88,15 @@ def tune_dropout_rate_REBLDModel():
     model_name = available_models[3]
     model_full_name = model_name_abbr_full[model_name]
     print('============ ' + model_full_name + ' tune dropout rate ============')
-    lstm_p_dropouts = [0.2, 0.3, 0.4, 0.5]
-    dense_p_dropouts = [0.2, 0.3, 0.4, 0.5]
-    for lstm_rate in lstm_p_dropouts:
-        for dense_rate in dense_p_dropouts:
-            text_match_model = ModelFactory.make_model(model_name)
-            hyperparams = net_conf.get_hyperparams(model_name)
-            hyperparams.lstm_p_dropout = lstm_rate
-            hyperparams.dense_p_dropout = dense_rate
-            dataset_name = available_datasets[0]
-            dataset_params = params.get_dataset_params(dataset_name)
-            tools.train_model(text_match_model, hyperparams, dataset_params)
+    p_dropouts = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    for p_dropout in p_dropouts:
+        text_match_model = ModelFactory.make_model(model_name)
+        hyperparams = net_conf.get_hyperparams(model_name)
+        hyperparams.lstm_p_dropout = p_dropout
+        hyperparams.dense_p_dropout = p_dropout
+        dataset_name = available_datasets[0]
+        dataset_params = params.get_dataset_params(dataset_name)
+        tools.train_model(text_match_model, hyperparams, dataset_params)
 
 
 def tune_enc_layer_num_TEBLDModel():
