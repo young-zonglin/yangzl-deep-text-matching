@@ -119,7 +119,7 @@ def tune_dropout_rate_TEBLDModel():
     run_this_model = available_models[2]
     model_full_name = model_name_abbr_full[run_this_model]
     print('============ ' + model_full_name + ' tune dropout rate ============')
-    dropout_rates = [0.2, 0.3, 0.4, 0.5, 0.6]
+    dropout_rates = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
     for p_dropout in dropout_rates:
         text_match_model = ModelFactory.make_model(run_this_model)
         hyperparams = net_conf.get_hyperparams(run_this_model)

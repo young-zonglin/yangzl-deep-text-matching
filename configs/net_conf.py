@@ -52,7 +52,7 @@ class BasicHParams:
         self.pad = 'pre'
         self.cut = 'pre'
 
-        self.batch_size = 32  # 32 64 128 256
+        self.batch_size = 32  # Integer multiple of 32
 
     def __str__(self):
         ret_info = list()
@@ -129,10 +129,19 @@ class AvgSeqDenseHParams(TrainHParams):
 
 
 class StackedBiLSTMDenseHParams(TrainHParams):
+    """
+    The best result is a val_accuracy of about 90.12%.
+    """
     def __init__(self):
         super(StackedBiLSTMDenseHParams, self).__init__()
-        self.bilstm_retseq_layer_num = 2  # best value according to experiment
-        self.state_dim = 100
+        # best value according to experiment
+        # if set too much, overfitting up
+        self.bilstm_retseq_layer_num = 2
+
+        # Should be proportional to the dimension of the feature vectors.
+        # if set too large, overfitting up
+        self.state_dim = 300
+
         # dropout rate up, overfitting down
         # 0.4 or 0.5 is a good value
         # Information will be lost as the rate continue to increase.
@@ -147,19 +156,22 @@ class StackedBiLSTMDenseHParams(TrainHParams):
         self.activity_l2_lambda = 0
 
         self.unit_reduce = False
-        self.dense_layer_num = 2
-        self.linear_unit_num = 128
+        self.dense_layer_num = 1
+        self.linear_unit_num = self.state_dim
         self.dense_p_dropout = 0.4
 
         self.optimizer = RMSprop()
         self.lr_scheduler = LRSchedulerDoNothing()
 
+        # Although val loss no longer decreases, val acc may continue to increase.
+        # Although val loss can more accurately reflect the performance of the model,
+        # we actually use val acc to evaluate the performance of the model.
         self.early_stop_monitor = 'val_acc'
 
         # Set the value of hyper params batch_size => done
-        # See my evernote for more info.
+        # See my EverNote for more info.
         # There is no need to adjust batch_size dynamically.
-        self.batch_size = 128  # 32 64 128 256
+        self.batch_size = 128
 
     def __str__(self):
         ret_info = list()
@@ -177,19 +189,21 @@ class StackedBiLSTMDenseHParams(TrainHParams):
         return ''.join(ret_info) + super_str
 
 
-# The scale of the model and state vec dim should be proportional to the scale of the data.
+# The scale of the model and cell state dim should be proportional to the scale of the data.
 class RNMTPlusEncoderBiLSTMDenseHParams(TrainHParams):
     def __init__(self):
         super(RNMTPlusEncoderBiLSTMDenseHParams, self).__init__()
+        # follow SBLDModel
         self.retseq_layer_num = 2
-        self.state_dim = 100
-        # Since layer norm also has a regularization effect
-        self.lstm_p_dropout = 0.1
+        self.state_dim = 300
+
+        # Layer Norm also has a regularization effect
+        self.lstm_p_dropout = 0.3
 
         self.unit_reduce = False
-        self.dense_layer_num = 2
-        self.initial_unit_num = 128
-        self.dense_p_dropout = 0.5
+        self.dense_layer_num = 1
+        self.initial_unit_num = self.state_dim
+        self.dense_p_dropout = self.lstm_p_dropout
 
         # follow origin paper
         self.kernel_l2_lambda = 1e-5
@@ -231,6 +245,11 @@ class RNMTPlusEncoderBiLSTMDenseHParams(TrainHParams):
 
 
 class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
+    """
+    A model configured with the following parameters
+    is best able to achieve a val_loss value of approximately 0.4288
+    or a val_accuracy of about 81.74%.
+    """
     def __init__(self):
         super(TransformerEncoderBiLSTMDenseHParams, self).__init__()
         self.transformer_mode = 0
@@ -243,7 +262,8 @@ class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
         # In original paper, d_k = d_v = 64
         self.d_k = self.d_v = int(self.d_model/self.n_head)
         self.d_pos_enc = self.d_model
-        self.p_dropout = 0.1  # follow original paper
+        # 0.3 or 0.4 is a good value.
+        self.p_dropout = 0.4
 
         # Should be proportional to the dimension of the feature vectors.
         self.state_dim = self.d_model
@@ -267,10 +287,11 @@ class TransformerEncoderBiLSTMDenseHParams(TrainHParams):
         self.pad = 'post'
         self.cut = 'post'
 
-        # Although val loss no longer decreases, val acc may continue to increase.
-        # Although val loss can more accurately reflect the performance of the model,
-        # we actually use val acc to evaluate the performance of the model.
-        self.early_stop_monitor = 'val_acc'
+        # acc and val_acc have a stagnant phase at the beginning.
+        # loss and val_loss are still declining.
+        self.early_stop_monitor = 'val_loss'
+        # dropout rate up, stagnation duration also up.
+        self.early_stop_patience = 40
 
         # if set too small => GPU usage rate is low => training is slow
         # if set too large => will miss more samples
