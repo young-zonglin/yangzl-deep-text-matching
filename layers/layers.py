@@ -91,7 +91,8 @@ class Repeat(Layer):
                   'axis': self.axis,
                   'batch_size': self.batch_size}
         base_config = Layer.get_config(self)
-        return dict(list(base_config.items()) + list(config.items()))
+        # dict.items() will return a set-like object
+        return dict(base_config.items() | config.items())
 
 
 class ScaledDotProduct(Layer):
