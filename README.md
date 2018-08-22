@@ -4,9 +4,9 @@ Text matching using several deep models.
 ## Implemented models
 - Baseline model: Word vectors averaging + Linear Transformation.
 - Deep Bi-LSTMs based model.
-- Multi head attention based model.
-- Transformer encoder based model.
 - RNMT+ encoder based model.
+- Transformer encoder based model.
+- Multi head attention based model.
 
 ## Get started
 - The main entry point is at `train.py`.
