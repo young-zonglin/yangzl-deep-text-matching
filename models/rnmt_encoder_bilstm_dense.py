@@ -20,8 +20,8 @@ class RNMTPlusEncoderBiLSTMDenseModel(BasicModel):
                                               self.hyperparams.state_dim,
                                               self.hyperparams.lstm_p_dropout,
                                               self.hyperparams.kernel_l2_lambda,
-                                              self.hyperparams.bias_l2_lambda,
                                               self.hyperparams.recurrent_l2_lambda,
+                                              self.hyperparams.bias_l2_lambda,
                                               self.hyperparams.activity_l2_lambda)
         src1_context_repr_seq = RNMT_plus_encoder(src1_word_vec_seq)
         src2_context_repr_seq = RNMT_plus_encoder(src2_word_vec_seq)
